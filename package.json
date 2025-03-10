@@ -2,24 +2,38 @@
   "name": "json-as",
   "version": "1.0.0",
   "author": "Jairus Tanaka",
+  "description": "The only JSON library you'll need for AssemblyScript. SIMD enabled",
+  "types": "assembly/index.ts",
+  "main": "transform/lib/index.js",
+  "homepage": "https://github.com/JairusSW/json-as#readme",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/JairusSW/json-as.git"
   },
-  "main": "transform/lib/index.js",
+  "bugs": {
+    "url": "https://github.com/JairusSW/json-as/issues"
+  },
+  "scripts": {
+    "test": "bash ./run-tests.sh",
+    "bench:as": "bash ./run-bench.as.sh",
+    "bench:js": "bash ./run-bench.js.sh",
+    "build:test": "rm -rf ./build/ && JSON_DEBUG=true asc --lib ./lib/ assembly/test.ts --transform ./transform -o ./build/test.wasm --textFile ./build/test.wat --optimizeLevel 3 --shrinkLevel 0",
+    "build:test:simd": "rm -rf ./build/ && JSON_DEBUG=true asc assembly/test.ts --transform ./transform -o ./build/test.wasm --textFile ./build/test.wat --optimizeLevel 3 --shrinkLevel 0 --enable simd",
+    "test:wasmtime": "wasmtime ./build/test.wasm",
+    "test:wasmer": "wasmer ./build/test.wasm",
+    "build:transform": "tsc -p ./transform",
+    "bench:wasmer": "wasmer ./build/bench.wasm --llvm",
+    "prettier": "prettier -w ."
+  },
   "devDependencies": {
     "@assemblyscript/wasi-shim": "^0.1.0",
     "@types/node": "^22.13.1",
-    "as-bench": "JairusSW/as-bench",
-    "as-console": "^7.0.0",
-    "as-test": "^0.4.0-beta.3",
     "assemblyscript": "^0.27.34",
     "assemblyscript-prettier": "^3.0.1",
     "prettier": "^3.5.0",
+    "tsx": "^4.19.3",
     "typescript": "^5.7.3"
-  },
-  "bugs": {
-    "url": "https://github.com/JairusSW/json-as/issues"
   },
   "contributors": [
     "DogWhich",
@@ -31,8 +45,6 @@
     "Matt Johnson-Pint",
     "Tomáš Hromada"
   ],
-  "description": "The only JSON library you'll need for AssemblyScript. SIMD enabled",
-  "homepage": "https://github.com/JairusSW/json-as#readme",
   "keywords": [
     "assemblyscript",
     "json",
@@ -48,24 +60,8 @@
     "fast",
     "algorithm"
   ],
-  "license": "MIT",
-  "overrides": {
-    "assemblyscript": "$assemblyscript"
-  },
   "publishConfig": {
     "@JairusSW:registry": "https://npm.pkg.github.com"
   },
-  "scripts": {
-    "test": "bash ./run-tests.sh",
-    "build:bench": "rm -rf ./build/ && JSON_DEBUG=true asc --lib ./lib/ assembly/__benches__/string.bench.ts -o ./build/bench.wasm --textFile ./build/bench.wat --transform ./transform --optimizeLevel 3 --shrinkLevel 0 --converge --noAssert --uncheckedBehavior always --runtime stub --enable simd --enable bulk-memory",
-    "build:test": "rm -rf ./build/ && JSON_DEBUG=true asc --lib ./lib/ assembly/test.ts --transform ./transform -o ./build/test.wasm --textFile ./build/test.wat --optimizeLevel 3 --shrinkLevel 0",
-    "build:test:simd": "rm -rf ./build/ && JSON_DEBUG=true asc assembly/test.ts --transform ./transform -o ./build/test.wasm --textFile ./build/test.wat --optimizeLevel 3 --shrinkLevel 0 --enable simd",
-    "test:wasmtime": "wasmtime ./build/test.wasm",
-    "test:wasmer": "wasmer ./build/test.wasm",
-    "build:transform": "tsc -p ./transform",
-    "bench:wasmer": "wasmer ./build/bench.wasm --llvm",
-    "prettier": "prettier -w ."
-  },
-  "type": "module",
-  "types": "assembly/index.ts"
+  "type": "module"
 }

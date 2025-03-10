@@ -20,4 +20,4 @@ jobs:
         run: bun install
 
       - name: Run Tests
-        run: bun run test
+        run: bash ./run-tests.sh

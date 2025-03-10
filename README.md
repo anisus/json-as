@@ -378,7 +378,7 @@ The `json-as` library has been optimized to achieve near-gigabyte-per-second JSO
 
 Note: the AssemblyScript benches are run using a _bump allocator_ so that Garbage Collection does not interfere with results. Also note that ideally, I would use [d8](https://v8.dev/docs/d8), but until that is done, these results serve as a temporary performance comparison.
 
-**Table 1** - _AssemblyScript_
+**Table 1** - _AssemblyScript (LLVM)_
 
 | Test Case       | Size       | Serialization (ops/s) | Deserialization (ops/s) | Serialization (MB/s) | Deserialization (MB/s) |
 | --------------- | ---------- | --------------------- | ----------------------- | -------------------- | ---------------------- |
@@ -388,7 +388,7 @@ Note: the AssemblyScript benches are run using a _bump allocator_ so that Garbag
 | Medium Object   | 494 bytes  | 4,060,913 ops/s       | 1,396,160 ops/s         | 2,006 MB/s           | 689.7 MB/s             |
 | Large Object    | 3374 bytes | 614,754 ops/s         | 132,802 ops/s           | 2,074 MB/s           | 448.0 MB/s             |
 
-**Table 2** - _JavaScript_
+**Table 2** - _JavaScript (V8)_
 
 | Test Case       | Size       | Serialization (ops/s) | Deserialization (ops/s) | Serialization (MB/s) | Deserialization (MB/s) |
 | --------------- | ---------- | --------------------- | ----------------------- | -------------------- | ---------------------- |
@@ -397,6 +397,13 @@ Note: the AssemblyScript benches are run using a _bump allocator_ so that Garbag
 | Small Object    | 88 bytes   | 8,376,963 ops/s       | 4,968,944 ops/s         | 737.1 MB/s           | 437.2 MB/s             |
 | Medium Object   | 494 bytes  | 2,395,210 ops/s       | 1,381,693 ops/s         | 1,183 MB/s           | 682.5 MB/s             |
 | Large Object    | 3374 bytes | 222,222 ops/s         | 117,233 ops/s           | 749.7 MB/s           | 395.5 MB/s             |
+
+## 🔭 What's Next
+
+- Theorize plans to keep key-order in generated schemas
+- Generate optimized deserialization methods
+- Inline specific hot code paths
+- Implement error handling implementation
 
 ## 📃 License
 

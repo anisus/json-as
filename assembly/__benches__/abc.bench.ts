@@ -9,7 +9,7 @@ bench(
   () => {
     JSON.stringify(v1);
   },
-  64_000_00,
+  1_000_00,
 );
 
 bench(
@@ -17,5 +17,5 @@ bench(
   () => {
     JSON.parse<string>(v2);
   },
-  64_000_00,
+  1_000_00,
 );

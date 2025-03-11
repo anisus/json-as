@@ -16,17 +16,15 @@ JSON is the de-facto serialization format of modern web applications, but its se
 
 ## 🚨 What's new in v1.0.0
 
-🔹Breaking changes to the way custom serializers/deserializers function (See Custom Serializers below)
-
 🔹Major performance improvements and addition of SIMD
 
-🔹Extremely low memory overhead compared to pre-1.x.x versions (great for serverless workloads)
+🔹Near zero-growth allocation design and low overhead
 
-🔹Fixes to many major issues and newly discovered bugs
+🔹Support for custom serializer and deserializers
 
-🔹Full support for dynamic objects, arrays, and values
+🔹Fixes to many, many, bugs and edge cases
 
-🔹Full support for `JSON.Raw` type everywhere
+🔹Support for dynamic objects, arrays, arbitrary values, and raw types
 
 ## 📚 Contents
 
@@ -374,9 +372,11 @@ This allows custom serialization while maintaining a generic interface for the l
 
 ## ⚡ Performance
 
-The `json-as` library has been optimized to achieve near-gigabyte-per-second JSON processing speeds through SIMD acceleration and highly efficient transformations. Below are some key performance benchmarks to give you an idea of how it performs.
+The `json-as` library has been optimized to achieve near-gigabyte-per-second JSON processing speeds through SIMD acceleration and highly efficient transformations. Below are detailed statistics comparing performance metrics such as build time, operations-per-second, and throughput.
 
-Note: the AssemblyScript benches are run using a _bump allocator_ so that Garbage Collection does not interfere with results. Also note that ideally, I would use [d8](https://v8.dev/docs/d8), but until that is done, these results serve as a temporary performance comparison.
+### 🔍 Comparison to JavaScript
+
+These benchmarks compare this library to JavaScript's native `JSON.stringify` and `JSON.parse` functions.
 
 **Table 1** - _AssemblyScript (LLVM)_
 
@@ -397,6 +397,64 @@ Note: the AssemblyScript benches are run using a _bump allocator_ so that Garbag
 | Small Object    | 88 bytes   | 8,376,963 ops/s       | 4,968,944 ops/s         | 737.1 MB/s           | 437.2 MB/s             |
 | Medium Object   | 494 bytes  | 2,395,210 ops/s       | 1,381,693 ops/s         | 1,183 MB/s           | 682.5 MB/s             |
 | Large Object    | 3374 bytes | 222,222 ops/s         | 117,233 ops/s           | 749.7 MB/s           | 395.5 MB/s             |
+
+**📌 Insights**
+
+- JSON-AS consistently outperforms JavaScript's native implementation.
+
+- **Serialization Speed:**
+  - JSON-AS achieves speeds up to `2,133 MB/s`, significantly faster than JavaScript's peak of `1,416 MB/s`.
+  - Large objects see the biggest improvement, with JSON-AS at `2,074 MB/s` vs. JavaScript’s `749.7 MB/s`.
+
+- **Deserialization Speed:**
+  - JSON-AS reaches `1,986 MB/s`, while JavaScript caps at `1,592 MB/s`.
+  - Small and medium objects see the most significant performance boost overall.
+
+### 📈 Comparison to v0.9.x version
+
+**Table 1** - _v1.0.0_
+
+| Test Case       | Size       | Serialization (ops/s) | Deserialization (ops/s) | Serialization (MB/s) | Deserialization (MB/s) |
+| --------------- | ---------- | --------------------- | ----------------------- | -------------------- | ---------------------- |
+| Vector3 Object  | 38 bytes   | 35,714,285 ops/s      | 35,435,552 ops/s        | 1,357 MB/s           | 1,348 MB/s             |
+| Alphabet String | 104 bytes  | 13,617,021 ops/s      | 18,390,804 ops/s        | 1,416 MB/s           | 1,986 MB/s             |
+| Small Object    | 88 bytes   | 24,242,424 ops/s      | 12,307,692 ops/s        | 2,133 MB/s           | 1,083 MB/s             |
+| Medium Object   | 494 bytes  | 4,060,913 ops/s       | 1,396,160 ops/s         | 2,006 MB/s           | 689.7 MB/s             |
+| Large Object    | 3374 bytes | 614,754 ops/s         | 132,802 ops/s           | 2,074 MB/s           | 448.0 MB/s             |
+
+**Table 2** - _v0.9.29_
+
+| Test Case       | Size       | Serialization (ops/s) | Deserialization (ops/s) | Serialization (MB/s) | Deserialization (MB/s) |
+| --------------- | ---------- | --------------------- | ----------------------- | -------------------- | ---------------------- |
+| Vector3 Object  | 38 bytes   | 1,509,433 ops/s       | 546,634 ops/s           | 57.3 MB/s            | 20.7 MB/s              |
+| Alphabet String | 104 bytes  | 339,043 ops/s         | 378,272 ops/s           | 35.2 MB/s            | 36.6 MB/s              |
+| Small Object    | 88 bytes   | 519,947 ops/s         | 342,902 ops/s           | 45.8 MB/s            | 30.2 MB/s              |
+| Medium Object   | 494 bytes  | 64,861 ops/s          | 49,140 ops/s            | 32.0 MB/s            | 24.3 MB/s              |
+| Large Object    | 3374 bytes | 11,936 ops/s          | 4,117 ops/s             | 40.3 MB/s            | 13.9 MB/s              |
+
+**📌 Insights:**
+
+- Massive performance improvements in JSON-AS `v1.0.0`:
+- Serialization is up to **100x faster** (e.g., Large Object: `2,074 MB/s` vs. `40.3 MB/s`).
+- Deserialization sees up to **97x speed gains** (e.g., Large Object: `448 MB/s` vs. `13.9 MB/s`).
+- Vector3 Object serialization improved from `57.3 MB/s` to `1,357 MB/s` through new code generation techniques.
+
+### ⏱️ Build Time Comparisons
+
+| Test Case       | Build Time (1.x.x)  | Build Time (0.9.x) |
+| --------------- | ------------------- | ------------------ |
+| vec3.bench.ts   | 2.10s               | 2m 3s              |
+| abc.bench.ts    | 1.74s               | 1m 40s             |
+| small.bench.ts  | 1.96s               | 1m 54s             |
+| medium.bench.ts | 2.14s               | 1m 36s             |
+| large.bench.ts  | 2.51s               | 1m 56s             |
+
+**📌 Insights:**
+
+- JSON-AS v1.0.0 reduces build times from minutes to seconds
+- **vec3.bench.ts** dropped from `2m 3s` to `2.10s`.
+- **large.bench.ts** went from `1m 56s` to `2.51s`.
+- Older versions suffered exponential build time increases with frequent `JSON.stringify` or `JSON.parse` calls.
 
 ## 🔭 What's Next
 

@@ -18,6 +18,8 @@ JSON is the de-facto serialization format of modern web applications, but its se
 
 🔹Major performance improvements and addition of SIMD
 
+🔹Object serialization is **100x faster** (yes, you read that right)
+
 🔹Near zero-growth allocation design and low overhead
 
 🔹Support for custom serializer and deserializers

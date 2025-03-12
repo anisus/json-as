@@ -1,5 +1,9 @@
 # Change Log
 
+## 2025-03-10 - 1.0.1
+
+- docs: add comprehensive performance metrics
+
 ## 2025-03-09 - 1.0.0
 
 - fix: relative paths pointing through node_modules would create a second Source

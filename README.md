@@ -6,7 +6,7 @@
 ██   ██      ██ ██    ██ ██  ██ ██       ██   ██      ██
  █████  ███████  ██████  ██   ████       ██   ██ ███████
  </span>
-    AssemblyScript - v1.0.0
+    AssemblyScript - v1.0.1
   </pre>
 </h5>
 
@@ -14,7 +14,7 @@
 
 JSON is the de-facto serialization format of modern web applications, but its serialization and deserialization remain a significant performance bottleneck, especially at scale. Traditional parsing approaches are computationally expensive, adding unnecessary overhead to both clients and servers. This library is designed to mitigate this by leveraging SIMD acceleration and highly optimized transformations.
 
-## 🚨 What's new in v1.0.0
+## 🔭 What's new
 
 🔹Major performance improvements and addition of SIMD
 

@@ -1,7 +1,8 @@
 import { BACK_SLASH } from "../../custom/chars";
 import { DESERIALIZE_ESCAPE_TABLE, ESCAPE_HEX_TABLE } from "../../globals/tables";
 
-export function deserializeString(srcStart: usize, srcEnd: usize, dst: usize): string {
+// @ts-ignore: inline
+@inline export function deserializeString(srcStart: usize, srcEnd: usize, dst: usize): string {
   srcStart += 2;
   srcEnd -= 2;
   const startPtr = srcStart;

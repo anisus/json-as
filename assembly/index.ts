@@ -118,12 +118,12 @@ export namespace JSON {
       // @ts-ignore: Supplied by transform
     } else if (isDefined(data.__SERIALIZE_CUSTOM)) {
       // @ts-ignore
-      data.__SERIALIZE_CUSTOM(changetype<usize>(data));
+      inline.always(data.__SERIALIZE_CUSTOM(changetype<usize>(data)));
       return bs.out<string>();
       // @ts-ignore: Supplied by transform
     } else if (isDefined(data.__SERIALIZE)) {
       // @ts-ignore
-      data.__SERIALIZE(changetype<usize>(data));
+      inline.always(data.__SERIALIZE(changetype<usize>(data)));
       return bs.out<string>();
       // @ts-ignore: Supplied by transform
     } else if (data instanceof Date) {
@@ -135,20 +135,20 @@ export namespace JSON {
       return changetype<string>(out);
     } else if (data instanceof Array) {
       // @ts-ignore
-      serializeArray(changetype<nonnull<T>>(data));
+      inline.always(serializeArray(changetype<nonnull<T>>(data)));
       return bs.out<string>();
     } else if (data instanceof Map) {
       // @ts-ignore
-      serializeMap(changetype<nonnull<T>>(data));
+      inline.always(serializeMap(changetype<nonnull<T>>(data)));
       return bs.out<string>();
     } else if (data instanceof JSON.Raw) {
-      serializeRaw(data);
+      inline.always(serializeRaw(data));
       return bs.out<string>();
     } else if (data instanceof JSON.Value) {
-      serializeArbitrary(data);
+      inline.always(serializeArbitrary(data));
       return bs.out<string>();
     } else if (data instanceof JSON.Obj) {
-      serializeObject(data);
+      inline.always(serializeObject(data));
       return bs.out<string>();
     } else if (data instanceof JSON.Box) {
       return JSON.stringify(data.value);
@@ -183,7 +183,7 @@ export namespace JSON {
       return deserializeString(dataPtr, dataPtr + dataSize, __new(dataSize - 4, idof<string>()));
     } else if (isArray<T>()) {
       // @ts-ignore
-      return deserializeArray<nonnull<T>>(dataPtr, dataPtr + dataSize, changetype<usize>(instantiate<T>()));
+      return inline.always(deserializeArray<nonnull<T>>(dataPtr, dataPtr + dataSize, changetype<usize>(instantiate<T>())));
     }
     let type: nonnull<T> = changetype<nonnull<T>>(0);
     // @ts-ignore: Defined by transform
@@ -199,10 +199,10 @@ export namespace JSON {
       // @ts-ignore: Defined by transform
       if (isDefined(type.__INITIALIZE)) changetype<nonnull<T>>(out).__INITIALIZE();
       // @ts-ignore
-      return deserializeStruct<nonnull<T>>(dataPtr, dataPtr + dataSize, out);
+      return inline.always(deserializeStruct<nonnull<T>>(dataPtr, dataPtr + dataSize, out));
     } else if (type instanceof Map) {
       // @ts-ignore
-      return deserializeMap<nonnull<T>>(dataPtr, dataPtr + dataSize, 0);
+      return inline.always(deserializeMap<nonnull<T>>(dataPtr, dataPtr + dataSize, 0));
     } else if (type instanceof Date) {
       // @ts-ignore
       return deserializeDate(dataPtr, dataPtr + dataSize);
@@ -210,11 +210,11 @@ export namespace JSON {
       // @ts-ignore: type
       return deserializeRaw(dataPtr, dataPtr + dataSize);
     } else if (type instanceof JSON.Value) {
-      // @ts-ignorew
-      return deserializeArbitrary(dataPtr, dataPtr + dataSize, 0);
+      // @ts-ignore
+      return inline.always(deserializeArbitrary(dataPtr, dataPtr + dataSize, 0));
     } else if (type instanceof JSON.Obj) {
       // @ts-ignore
-      return deserializeObject(dataPtr, dataPtr + dataSize, 0);
+      return inline.always(deserializeObject(dataPtr, dataPtr + dataSize, 0));
     } else if (type instanceof JSON.Box) {
       // @ts-ignore
       return new JSON.Box(parseBox(data, changetype<nonnull<T>>(0).value));
@@ -546,22 +546,22 @@ export namespace JSON {
       // @ts-ignore: Supplied by transform
     } else if (isDefined(src.__SERIALIZE)) {
       // @ts-ignore
-      serializeStruct(changetype<nonnull<T>>(src));
+      inline.always(serializeStruct(changetype<nonnull<T>>(src)));
     } else if (src instanceof Date) {
       // @ts-ignore
-      serializeDate(changetype<nonnull<T>>(src));
+      inline.always(serializeDate(changetype<nonnull<T>>(src)));
     } else if (src instanceof Array) {
       // @ts-ignore
-      serializeArray(changetype<nonnull<T>>(src));
+      inline.always(serializeArray(changetype<nonnull<T>>(src)));
     } else if (src instanceof Map) {
       // @ts-ignore
-      serializeMap(changetype<nonnull<T>>(src));
+      inline.always(serializeMap(changetype<nonnull<T>>(src)));
     } else if (src instanceof JSON.Raw) {
       serializeRaw(src);
     } else if (src instanceof JSON.Value) {
-      serializeArbitrary(src);
+      inline.always(serializeArbitrary(src));
     } else if (src instanceof JSON.Obj) {
-      serializeObject(src);
+      inline.always(serializeObject(src));
     } else if (src instanceof JSON.Box) {
       __serialize(src.value);
     } else {
@@ -582,7 +582,7 @@ export namespace JSON {
       return deserializeString(srcStart, srcEnd, dst);
     } else if (isArray<T>()) {
       // @ts-ignore
-      return deserializeArray<T>(srcStart, srcEnd, dst);
+      return inline.always(deserializeArray<T>(srcStart, srcEnd, dst));
     } else {
       let type: nonnull<T> = changetype<nonnull<T>>(0);
       // @ts-ignore: Defined by transform
@@ -594,10 +594,10 @@ export namespace JSON {
         return changetype<nonnull<T>>(out).__DESERIALIZE_CUSTOM(ptrToStr(srcStart, srcEnd));
         // @ts-ignore: Defined by transform
       } else if (isDefined(type.__DESERIALIZE)) {
-        return deserializeStruct<T>(srcStart, srcEnd, dst);
+        return inline.always(deserializeStruct<T>(srcStart, srcEnd, dst));
       } else if (type instanceof Map) {
         // @ts-ignore: type
-        return deserializeMap<T>(srcStart, srcEnd, dst);
+        return inline.always(deserializeMap<T>(srcStart, srcEnd, dst));
       } else if (type instanceof Date) {
         // @ts-ignore: type
         return deserializeDate(srcStart, srcEnd);
@@ -606,7 +606,7 @@ export namespace JSON {
         return deserializeRaw(srcStart, srcEnd);
       } else if (type instanceof JSON.Value) {
         // @ts-ignore: type
-        return deserializeArbitrary(srcStart, srcEnd, 0);
+        return inline.always(deserializeArbitrary(srcStart, srcEnd, 0));
       } else if (type instanceof JSON.Box) {
         // @ts-ignore: type
         return new JSON.Box(deserializeBox(srcStart, srcEnd, dst, changetype<nonnull<T>>(0).value));
@@ -620,12 +620,15 @@ export namespace JSON {
 @inline function parseBox<T>(data: string, ty: T): T {
   return JSON.parse<T>(data);
 }
-
-function deserializeBox<T>(srcStart: usize, srcEnd: usize, dst: usize, ty: T): T {
+// @ts-ignore: inline
+@inline function deserializeBox<T>(srcStart: usize, srcEnd: usize, dst: usize, ty: T): T {
   return JSON.__deserialize<T>(srcStart, srcEnd, dst);
 }
 
-export function toRaw(data: string): JSON.Raw { return new JSON.Raw(data) }
-export function fromRaw(data: JSON.Raw): string { return data.data }
+// @ts-ignore: inline
+@inline export function toRaw(data: string): JSON.Raw { return new JSON.Raw(data) }
+// @ts-ignore: inline
+@inline export function fromRaw(data: JSON.Raw): string { return data.data }
 
-export function toBox<T>(data: T): JSON.Box<T> { return new JSON.Box<T>(data) }
+// @ts-ignore: inline
+@inline export function toBox<T>(data: T): JSON.Box<T> { return new JSON.Box<T>(data) }

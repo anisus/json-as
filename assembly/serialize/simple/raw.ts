@@ -7,7 +7,8 @@ import { bytes } from "../../util";
  * @param data data to serialize
  * @returns void
  */
-export function serializeRaw(data: JSON.Raw): void {
+// @ts-ignore: inline
+@inline export function serializeRaw(data: JSON.Raw): void {
   const dataSize = bytes(data.data);
   bs.proposeSize(dataSize);
   memory.copy(changetype<usize>(bs.offset), changetype<usize>(data.data), dataSize);

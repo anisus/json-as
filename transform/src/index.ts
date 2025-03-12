@@ -63,7 +63,7 @@ class JSONTransform extends Visitor {
         );
       }
       let SERIALIZER = "";
-      SERIALIZER += "  @inline __SERIALIZE_CUSTOM(ptr: usize): void {\n";
+      SERIALIZER += "  __SERIALIZE_CUSTOM(ptr: usize): void {\n";
       SERIALIZER += "    const data = this." + serializer.name.text + "(changetype<" + this.schema.name + ">(ptr));\n";
       SERIALIZER += "    if (isNullable(data) && changetype<usize>(data) == <usize>0) throw new Error(\"Could not serialize data using custom serializer!\");\n";
       SERIALIZER += "    const dataSize = data.length << 1;\n";
@@ -98,7 +98,7 @@ class JSONTransform extends Visitor {
         );
       }
       let DESERIALIZER = "";
-      DESERIALIZER += "  @inline __DESERIALIZE_CUSTOM(data: string): " + this.schema.name + " {\n";
+      DESERIALIZER += "  __DESERIALIZE_CUSTOM(data: string): " + this.schema.name + " {\n";
       DESERIALIZER += "    const d = this." + deserializer.name.text + "(data)";
       DESERIALIZER += "    if (isNullable(d) && changetype<usize>(d) == <usize>0) throw new Error(\"Could not deserialize data using custom deserializer!\");\n";
       DESERIALIZER += "    return d;\n";

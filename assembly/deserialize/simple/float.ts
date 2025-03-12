@@ -1,6 +1,7 @@
 import { ptrToStr } from "../../util/ptrToStr";
 
-export function deserializeFloat<T>(srcStart: usize, srcEnd: usize): T {
+// @ts-ignore: inline
+@inline export function deserializeFloat<T>(srcStart: usize, srcEnd: usize): T {
   // @ts-ignore
   const type: T = 0;
   // @ts-ignore

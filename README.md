@@ -430,31 +430,14 @@ These benchmarks compare this library to JavaScript's native `JSON.stringify` an
 | Alphabet String | 104 bytes  | 5,128,205 ops/s       | 8,695,652 ops/s         | 533.3 MB/s           | 939.1 MB/s             |
 | Small Object    | 88 bytes   | 4,953,560 ops/s       | 3,678,160 ops/s         | 435.9 MB/s           | 323.7 MB/s             |
 | Medium Object   | 494 bytes  | 522,193 ops/s         | 508,582 ops/s           | 258.0 MB/s           | 251.2 MB/s             |
-| Large Object    | 3374 bytes | 25,549 ops/s          | 65,585 ops/s            | 86.2 MB/s            | 221.3 MB/s             |
+| Large Object    | 3374 bytes | 51,229 ops/s          | 65,585 ops/s            | 172.8 MB/s           | 221.3 MB/s             |
 
 **📌 Insights:**
 
 - Massive performance improvements in JSON-AS `v1.0.0`:
-- Serialization is **2-24x faster** (e.g., Large Object: `2,074 MB/s` vs. `86.2 MB/s`).
+- Serialization is **2-12x faster** (e.g., Large Object: `2,074 MB/s` vs. `172.8 MB/s`).
 - Deserialization is **2-3x faster** (e.g., Large Object: `1,348 MB/s` vs. `221.3 MB/s`).
 - Vector3 Object serialization improved from `416 MB/s` to `1,357 MB/s`--a **3x benefit** through new code generation techniques.
-
-### ⏱️ Build Time Comparisons
-
-| Test Case       | Build Time (1.x.x)  | Build Time (0.9.x) |
-| --------------- | ------------------- | ------------------ |
-| vec3.bench.ts   | 2.10s               | 2m 3s              |
-| abc.bench.ts    | 1.74s               | 1m 40s             |
-| small.bench.ts  | 1.96s               | 1m 54s             |
-| medium.bench.ts | 2.14s               | 1m 36s             |
-| large.bench.ts  | 2.51s               | 1m 56s             |
-
-**📌 Insights:**
-
-- JSON-AS v1.0.0 reduces build times from minutes to seconds
-- **vec3.bench.ts** dropped from `2m 3s` to `2.10s`.
-- **large.bench.ts** went from `1m 56s` to `2.51s`.
-- Older versions suffered exponential build time increases with frequent `JSON.stringify` or `JSON.parse` calls.
 
 ## 🔭 What's Next
 

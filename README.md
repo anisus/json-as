@@ -428,18 +428,18 @@ These benchmarks compare this library to JavaScript's native `JSON.stringify` an
 
 | Test Case       | Size       | Serialization (ops/s) | Deserialization (ops/s) | Serialization (MB/s) | Deserialization (MB/s) |
 | --------------- | ---------- | --------------------- | ----------------------- | -------------------- | ---------------------- |
-| Vector3 Object  | 38 bytes   | 1,509,433 ops/s       | 546,634 ops/s           | 57.3 MB/s            | 20.7 MB/s              |
-| Alphabet String | 104 bytes  | 339,043 ops/s         | 378,272 ops/s           | 35.2 MB/s            | 36.6 MB/s              |
-| Small Object    | 88 bytes   | 519,947 ops/s         | 342,902 ops/s           | 45.8 MB/s            | 30.2 MB/s              |
-| Medium Object   | 494 bytes  | 64,861 ops/s          | 49,140 ops/s            | 32.0 MB/s            | 24.3 MB/s              |
-| Large Object    | 3374 bytes | 11,936 ops/s          | 4,117 ops/s             | 40.3 MB/s            | 13.9 MB/s              |
+| Vector3 Object  | 38 bytes   | 6,896,551 ops/s       | 10,958,904 ops/s        | 262.1 MB/s           | 416.4 MB/s             |
+| Alphabet String | 104 bytes  | 5,128,205 ops/s       | 8,695,652 ops/s         | 533.3 MB/s           | 939.1 MB/s             |
+| Small Object    | 88 bytes   | 4,953,560 ops/s       | 3,678,160 ops/s         | 435.9 MB/s           | 323.7 MB/s             |
+| Medium Object   | 494 bytes  | 522,193 ops/s         | 508,582 ops/s           | 258.0 MB/s           | 251.2 MB/s             |
+| Large Object    | 3374 bytes | 25,549 ops/s          | 65,585 ops/s            | 86.2 MB/s            | 221.3 MB/s             |
 
 **📌 Insights:**
 
 - Massive performance improvements in JSON-AS `v1.0.0`:
-- Serialization is up to **100x faster** (e.g., Large Object: `2,074 MB/s` vs. `40.3 MB/s`).
-- Deserialization sees up to **97x speed gains** (e.g., Large Object: `448 MB/s` vs. `13.9 MB/s`).
-- Vector3 Object serialization improved from `57.3 MB/s` to `1,357 MB/s` through new code generation techniques.
+- Serialization is **2-24x faster** (e.g., Large Object: `2,074 MB/s` vs. `86.2 MB/s`).
+- Deserialization is **2-3x faster** (e.g., Large Object: `1,348 MB/s` vs. `221.3 MB/s`).
+- Vector3 Object serialization improved from `416 MB/s` to `1,357 MB/s`--a **3x benefit** through new code generation techniques.
 
 ### ⏱️ Build Time Comparisons
 

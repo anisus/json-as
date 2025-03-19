@@ -184,42 +184,43 @@ export namespace JSON {
     } else if (isArray<T>()) {
       // @ts-ignore
       return inline.always(deserializeArray<nonnull<T>>(dataPtr, dataPtr + dataSize, changetype<usize>(instantiate<T>())));
-    }
-    let type: nonnull<T> = changetype<nonnull<T>>(0);
-    // @ts-ignore: Defined by transform
-    if (isDefined(type.__DESERIALIZE_CUSTOM)) {
-      const out = changetype<nonnull<T>>(0);
-      // @ts-ignore: Defined by transform
-      if (isDefined(type.__INITIALIZE)) out.__INITIALIZE();
-      // @ts-ignore
-      return out.__DESERIALIZE_CUSTOM(ptrToStr(dataPtr, dataPtr + dataSize));
-      // @ts-ignore: Defined by transform
-    } else if (isDefined(type.__DESERIALIZE)) {
-      const out = __new(offsetof<nonnull<T>>(), idof<nonnull<T>>());
-      // @ts-ignore: Defined by transform
-      if (isDefined(type.__INITIALIZE)) changetype<nonnull<T>>(out).__INITIALIZE();
-      // @ts-ignore
-      return inline.always(deserializeStruct<nonnull<T>>(dataPtr, dataPtr + dataSize, out));
-    } else if (type instanceof Map) {
-      // @ts-ignore
-      return inline.always(deserializeMap<nonnull<T>>(dataPtr, dataPtr + dataSize, 0));
-    } else if (type instanceof Date) {
-      // @ts-ignore
-      return deserializeDate(dataPtr, dataPtr + dataSize);
-    } else if (type instanceof JSON.Raw) {
-      // @ts-ignore: type
-      return deserializeRaw(dataPtr, dataPtr + dataSize);
-    } else if (type instanceof JSON.Value) {
-      // @ts-ignore
-      return inline.always(deserializeArbitrary(dataPtr, dataPtr + dataSize, 0));
-    } else if (type instanceof JSON.Obj) {
-      // @ts-ignore
-      return inline.always(deserializeObject(dataPtr, dataPtr + dataSize, 0));
-    } else if (type instanceof JSON.Box) {
-      // @ts-ignore
-      return new JSON.Box(parseBox(data, changetype<nonnull<T>>(0).value));
     } else {
-      throw new Error(`Could not deserialize data ${data} to type ${nameof<T>()}. Make sure to add the correct decorators to classes.`);
+      let type: nonnull<T> = changetype<nonnull<T>>(0);
+      // @ts-ignore: Defined by transform
+      if (isDefined(type.__DESERIALIZE_CUSTOM)) {
+        const out = changetype<nonnull<T>>(0);
+        // @ts-ignore: Defined by transform
+        if (isDefined(type.__INITIALIZE)) out.__INITIALIZE();
+        // @ts-ignore
+        return out.__DESERIALIZE_CUSTOM(ptrToStr(dataPtr, dataPtr + dataSize));
+        // @ts-ignore: Defined by transform
+      } else if (isDefined(type.__DESERIALIZE)) {
+        const out = __new(offsetof<nonnull<T>>(), idof<nonnull<T>>());
+        // @ts-ignore: Defined by transform
+        if (isDefined(type.__INITIALIZE)) changetype<nonnull<T>>(out).__INITIALIZE();
+        // @ts-ignore
+        return inline.always(deserializeStruct<nonnull<T>>(dataPtr, dataPtr + dataSize, out));
+      } else if (type instanceof Map) {
+        // @ts-ignore
+        return inline.always(deserializeMap<nonnull<T>>(dataPtr, dataPtr + dataSize, 0));
+      } else if (type instanceof Date) {
+        // @ts-ignore
+        return deserializeDate(dataPtr, dataPtr + dataSize);
+      } else if (type instanceof JSON.Raw) {
+        // @ts-ignore: type
+        return deserializeRaw(dataPtr, dataPtr + dataSize);
+      } else if (type instanceof JSON.Value) {
+        // @ts-ignore
+        return inline.always(deserializeArbitrary(dataPtr, dataPtr + dataSize, 0));
+      } else if (type instanceof JSON.Obj) {
+        // @ts-ignore
+        return inline.always(deserializeObject(dataPtr, dataPtr + dataSize, 0));
+      } else if (type instanceof JSON.Box) {
+        // @ts-ignore
+        return new JSON.Box(parseBox(data, changetype<nonnull<T>>(0).value));
+      } else {
+        throw new Error(`Could not deserialize data ${data} to type ${nameof<T>()}. Make sure to add the correct decorators to classes.`);
+      }
     }
   }
 
@@ -581,8 +582,11 @@ export namespace JSON {
       // @ts-ignore: type
       return deserializeString(srcStart, srcEnd, dst);
     } else if (isArray<T>()) {
-      // @ts-ignore
+      // @ts-ignore: type
       return inline.always(deserializeArray<T>(srcStart, srcEnd, dst));
+    } else if (isNullable<T>() && srcEnd - srcStart == 8 && load<u64>(srcStart) == 30399761348886638) {
+      // @ts-ignore
+      return null;
     } else {
       let type: nonnull<T> = changetype<nonnull<T>>(0);
       // @ts-ignore: Defined by transform

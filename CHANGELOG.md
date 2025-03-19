@@ -1,5 +1,9 @@
 # Change Log
 
+## 2025-03-19 - 1.0.2
+
+- fix: include check for nullable types for properties when deserialization is called internally [#118](https://github.com/JairusSW/json-as/pull/118)
+
 ## 2025-03-10 - 1.0.1
 
 - docs: add comprehensive performance metrics

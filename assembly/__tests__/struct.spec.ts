@@ -64,6 +64,16 @@ describe("Should deserialize structs with whitespace", () => {
   ).toBe('{"x":3.4,"y":1.2,"z":8.3}');
 });
 
+describe("Should deserialize structs with nullable properties", () => {
+  expect(
+    JSON.stringify(JSON.parse<NullableObj>('{"bar":{"value":"test"}}'))
+  ).toBe('{"bar":{"value":"test"}}');
+
+  expect(
+    JSON.stringify(JSON.parse<NullableObj>('{"bar":null}'))
+  ).toBe('{"bar":null}');
+})
+
 // describe("Should serialize Suite struct", () => {
 
 // });
@@ -107,46 +117,34 @@ class Player {
 
 
 @json
-class ObjWithString {
-  s!: string;
-}
-
-
-@json
 class ObjWithStrangeKey<T> {
   @alias('a\\\t"\x02b`c')
   data!: T;
 }
-
-
-@json
-class ObjectWithStringArray {
-  sa!: string[];
-}
-
 
 @json
 class ObjectWithFloat {
   f!: f64;
 }
 
-
-@json
-class ObjectWithFloatArray {
-  fa!: f64[];
-}
-
-
 @json
 class OmitIf {
   x: i32 = 1;
-
 
   @omitif("this.y == -1")
   y: i32 = -1;
   z: i32 = 1;
 
-
   @omitnull()
   foo: string | null = null;
+}
+
+@json
+class NullableObj {
+  bar: Bar | null = null;
+}
+
+@json
+class Bar {
+  value: string = "";
 }

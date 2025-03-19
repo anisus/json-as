@@ -138,3 +138,14 @@ console.log("a11: " + JSON.stringify(a11));
 const a12 = JSON.parse<InnerObj<ObjWithBracketString>>('{"obj":{"data":"hello} world"}}');
 
 console.log("a12: " + JSON.stringify(a12))
+
+
+@json
+class NullableObj {
+  bar: Bar | null = null;
+}
+
+@json
+class Bar {
+  value: string = "";
+}

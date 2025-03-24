@@ -1,5 +1,9 @@
 # Change Log
 
+## 2025-03-24 - 1.0.3
+
+- fix: make transform windows-compatible [#119](https://github.com/JairusSW/json-as/issues/119?reload=1)
+
 ## 2025-03-19 - 1.0.2
 
 - fix: include check for nullable types for properties when deserialization is called internally [#118](https://github.com/JairusSW/json-as/pull/118)

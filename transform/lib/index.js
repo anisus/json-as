@@ -416,17 +416,17 @@ class JSONTransform extends Visitor {
     }
     addRequiredImports(node) {
         const filePath = fileURLToPath(import.meta.url);
-        const fileDir = path.dirname(filePath);
+        const fileDir = path.posix.dirname(filePath);
         const bsImport = this.imports.find((i) => i.declarations?.find((d) => d.foreignName.text == "bs" || d.name.text == "bs"));
         const jsonImport = this.imports.find((i) => i.declarations?.find((d) => d.foreignName.text == "JSON" || d.name.text == "JSON"));
-        let pkgRel = path.relative(path.dirname(node.range.source.normalizedPath), path.resolve(fileDir, "../../"));
+        let pkgRel = path.posix.relative(path.posix.dirname(node.range.source.normalizedPath), path.posix.resolve(fileDir, "../../"));
         if (!pkgRel.startsWith(".") && !pkgRel.startsWith("/"))
             pkgRel = "./" + pkgRel;
         pkgRel = pkgRel.replace(/^.*json-as/, "json-as");
         if (!bsImport) {
             const replaceNode = Node.createImportStatement([
                 Node.createImportDeclaration(Node.createIdentifierExpression("bs", node.range, false), null, node.range)
-            ], Node.createStringLiteralExpression(path.join(pkgRel, "./lib/as-bs"), node.range), node.range);
+            ], Node.createStringLiteralExpression(path.posix.join(pkgRel, "./lib/as-bs"), node.range), node.range);
             this.topStatements.push(replaceNode);
             if (process.env["JSON_DEBUG"])
                 console.log("Added as-bs import: " + toString(replaceNode) + "\n");
@@ -434,7 +434,7 @@ class JSONTransform extends Visitor {
         if (!jsonImport) {
             const replaceNode = Node.createImportStatement([
                 Node.createImportDeclaration(Node.createIdentifierExpression("JSON", node.range, false), null, node.range)
-            ], Node.createStringLiteralExpression(path.join(pkgRel, "./assembly"), node.range), node.range);
+            ], Node.createStringLiteralExpression(path.posix.join(pkgRel, "./assembly"), node.range), node.range);
             this.topStatements.push(replaceNode);
             if (process.env["JSON_DEBUG"])
                 console.log("Added json-as import: " + toString(replaceNode) + "\n");

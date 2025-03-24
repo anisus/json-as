@@ -478,14 +478,14 @@ class JSONTransform extends Visitor {
   }
   addRequiredImports(node: Source): void {
     const filePath = fileURLToPath(import.meta.url);
-    const fileDir = path.dirname(filePath);
+    const fileDir = path.posix.dirname(filePath);
 
     const bsImport = this.imports.find((i) => i.declarations?.find((d) => d.foreignName.text == "bs" || d.name.text == "bs"));
     const jsonImport = this.imports.find((i) => i.declarations?.find((d) => d.foreignName.text == "JSON" || d.name.text == "JSON"));
 
-    let pkgRel = path.relative(
-      path.dirname(node.range.source.normalizedPath),
-      path.resolve(fileDir, "../../")
+    let pkgRel = path.posix.relative(
+      path.posix.dirname(node.range.source.normalizedPath),
+      path.posix.resolve(fileDir, "../../")
     );
 
     if (!pkgRel.startsWith(".") && !pkgRel.startsWith("/")) pkgRel = "./" + pkgRel;
@@ -500,7 +500,7 @@ class JSONTransform extends Visitor {
             node.range
           )
         ],
-        Node.createStringLiteralExpression(path.join(pkgRel, "./lib/as-bs"), node.range),
+        Node.createStringLiteralExpression(path.posix.join(pkgRel, "./lib/as-bs"), node.range),
         node.range
       );
       this.topStatements.push(replaceNode);
@@ -516,7 +516,7 @@ class JSONTransform extends Visitor {
             node.range
           )
         ],
-        Node.createStringLiteralExpression(path.join(pkgRel, "./assembly"), node.range),
+        Node.createStringLiteralExpression(path.posix.join(pkgRel, "./assembly"), node.range),
         node.range
       );
       this.topStatements.push(replaceNode);

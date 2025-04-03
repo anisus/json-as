@@ -1,5 +1,9 @@
 # Change Log
 
+## 2025-04-03 - 1.0.4
+
+- chore: remove all references of `--lib`
+
 ## 2025-03-24 - 1.0.3
 
 - fix: make transform windows-compatible [#119](https://github.com/JairusSW/json-as/issues/119?reload=1)

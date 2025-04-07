@@ -478,23 +478,31 @@ class JSONTransform extends Visitor {
   }
   addRequiredImports(node: Source): void {
     const filePath = fileURLToPath(import.meta.url);
-    const fileDir = path.posix.dirname(filePath);
+    const baseDir = path.resolve(filePath, '..', '..', '..');
+    const nodePath = path.resolve(process.cwd(), node.range.source.normalizedPath);
 
     const bsImport = this.imports.find((i) => i.declarations?.find((d) => d.foreignName.text == "bs" || d.name.text == "bs"));
     const jsonImport = this.imports.find((i) => i.declarations?.find((d) => d.foreignName.text == "JSON" || d.name.text == "JSON"));
 
-    let pkgRel = path.posix.relative(
-      path.posix.dirname(node.range.source.normalizedPath),
-      path.posix.resolve(fileDir, "../../")
-    );
+    let bsPath = path.posix.join(
+      ...(path.relative(
+        path.dirname(nodePath),
+        path.join(baseDir, "lib", "as-bs")
+      ).split(path.sep))
+    ).replace(/^.*node_modules\/json-as/, "json-as");
 
-    if (!pkgRel.startsWith(".") && !pkgRel.startsWith("/")) pkgRel = path.posix.join(".", pkgRel);
-    pkgRel = pkgRel.replace(/^.*json-as/, "json-as");
+    let jsonPath = path.posix.join(
+      ...(path.relative(
+        path.dirname(nodePath),
+        path.join(baseDir, "assembly", "index.ts")
+      ).split(path.sep))
+    ).replace(/^.*node_modules\/json-as/, "json-as");
 
     if (!bsImport) {
-      let importPath = path.posix.join(pkgRel, "./lib/as-bs");
-      if (node.normalizedPath.startsWith("~lib/"))
-        importPath = "json-as/lib/as-bs";
+      if (node.normalizedPath.startsWith("~")) {
+        bsPath = "json-as/lib/as-bs";
+      }
+
       const replaceNode = Node.createImportStatement(
         [
           Node.createImportDeclaration(
@@ -503,7 +511,7 @@ class JSONTransform extends Visitor {
             node.range
           )
         ],
-        Node.createStringLiteralExpression(importPath, node.range),
+        Node.createStringLiteralExpression(bsPath, node.range),
         node.range
       );
       this.topStatements.push(replaceNode);
@@ -511,6 +519,9 @@ class JSONTransform extends Visitor {
     }
 
     if (!jsonImport) {
+      if (node.normalizedPath.startsWith("~")) {
+        jsonPath = "json-as/assembly/index.ts";
+      }
       const replaceNode = Node.createImportStatement(
         [
           Node.createImportDeclaration(
@@ -519,13 +530,14 @@ class JSONTransform extends Visitor {
             node.range
           )
         ],
-        Node.createStringLiteralExpression(path.posix.join(pkgRel, "./assembly"), node.range),
+        Node.createStringLiteralExpression(jsonPath, node.range),  // Ensure POSIX-style path for 'assembly'
         node.range
       );
       this.topStatements.push(replaceNode);
       if (process.env["JSON_DEBUG"]) console.log("Added json-as import: " + toString(replaceNode) + "\n");
     }
   }
+
 
   getStores(data: string, simd: boolean = false): string[] {
     const out: string[] = [];

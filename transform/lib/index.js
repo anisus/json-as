@@ -27,7 +27,7 @@ class JSONTransform extends Visitor {
         this.schema.name = node.name.text;
         this.schemas.push(this.schema);
         if (process.env["JSON_DEBUG"])
-            console.log("Created schema: " + this.schema.name);
+            console.log("Created schema: " + this.schema.name + " in file " + node.range.source.normalizedPath);
         const members = [...node.members.filter((v) => v.kind === 54 && v.flags !== 32 && v.flags !== 512 && v.flags !== 1024 && !v.decorators?.some((decorator) => decorator.name.text === "omit"))];
         const serializers = [...(node.members.filter((v) => v.kind === 58 && v.decorators && v.decorators.some((e) => e.name.text.toLowerCase() === "serializer")))];
         const deserializers = [...(node.members.filter((v) => v.kind === 58 && v.decorators && v.decorators.some((e) => e.name.text.toLowerCase() === "deserializer")))];
@@ -421,12 +421,15 @@ class JSONTransform extends Visitor {
         const jsonImport = this.imports.find((i) => i.declarations?.find((d) => d.foreignName.text == "JSON" || d.name.text == "JSON"));
         let pkgRel = path.posix.relative(path.posix.dirname(node.range.source.normalizedPath), path.posix.resolve(fileDir, "../../"));
         if (!pkgRel.startsWith(".") && !pkgRel.startsWith("/"))
-            pkgRel = "./" + pkgRel;
+            pkgRel = path.posix.join(".", pkgRel);
         pkgRel = pkgRel.replace(/^.*json-as/, "json-as");
         if (!bsImport) {
+            let importPath = path.posix.join(pkgRel, "./lib/as-bs");
+            if (node.normalizedPath.startsWith("~lib/"))
+                importPath = "json-as/lib/as-bs";
             const replaceNode = Node.createImportStatement([
                 Node.createImportDeclaration(Node.createIdentifierExpression("bs", node.range, false), null, node.range)
-            ], Node.createStringLiteralExpression(path.posix.join(pkgRel, "./lib/as-bs"), node.range), node.range);
+            ], Node.createStringLiteralExpression(importPath, node.range), node.range);
             this.topStatements.push(replaceNode);
             if (process.env["JSON_DEBUG"])
                 console.log("Added as-bs import: " + toString(replaceNode) + "\n");

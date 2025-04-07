@@ -34,7 +34,7 @@ class JSONTransform extends Visitor {
     this.schema.name = node.name.text;
 
     this.schemas.push(this.schema);
-    if (process.env["JSON_DEBUG"]) console.log("Created schema: " + this.schema.name);
+    if (process.env["JSON_DEBUG"]) console.log("Created schema: " + this.schema.name + " in file " + node.range.source.normalizedPath);
 
     const members: FieldDeclaration[] = [...(node.members.filter((v) => v.kind === NodeKind.FieldDeclaration && v.flags !== CommonFlags.Static && v.flags !== CommonFlags.Private && v.flags !== CommonFlags.Protected && !v.decorators?.some((decorator) => (<IdentifierExpression>decorator.name).text === "omit")) as FieldDeclaration[])];
     const serializers: MethodDeclaration[] = [...(node.members.filter((v) => v.kind === NodeKind.MethodDeclaration && v.decorators && v.decorators.some((e) => (<IdentifierExpression>e.name).text.toLowerCase() === "serializer")))] as MethodDeclaration[];
@@ -488,10 +488,13 @@ class JSONTransform extends Visitor {
       path.posix.resolve(fileDir, "../../")
     );
 
-    if (!pkgRel.startsWith(".") && !pkgRel.startsWith("/")) pkgRel = "./" + pkgRel;
+    if (!pkgRel.startsWith(".") && !pkgRel.startsWith("/")) pkgRel = path.posix.join(".", pkgRel);
     pkgRel = pkgRel.replace(/^.*json-as/, "json-as");
 
     if (!bsImport) {
+      let importPath = path.posix.join(pkgRel, "./lib/as-bs");
+      if (node.normalizedPath.startsWith("~lib/"))
+        importPath = "json-as/lib/as-bs";
       const replaceNode = Node.createImportStatement(
         [
           Node.createImportDeclaration(
@@ -500,7 +503,7 @@ class JSONTransform extends Visitor {
             node.range
           )
         ],
-        Node.createStringLiteralExpression(path.posix.join(pkgRel, "./lib/as-bs"), node.range),
+        Node.createStringLiteralExpression(importPath, node.range),
         node.range
       );
       this.topStatements.push(replaceNode);

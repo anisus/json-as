@@ -353,7 +353,8 @@ class JSONTransform extends Visitor {
       for (let i = 0; i < memberGroup.length; i++) {
         const member = memberGroup[i];
         const memberName = member.alias || member.name;
-        const dst = this.schemas.find(v => v.name == member.type) ? "ptr + offsetof<this>(\"" + member.name + "\") + 12" : "0";
+		// Fixing bug causing nested classes with __DESERIALIZE to write outside buffer
+        const dst = "0"; // this.schemas.find(v => v.name == member.type) ? "ptr + offsetof<this>(\"" + member.name + "\") + 12" : "0";
         if (memberLen == 2) {
           DESERIALIZE += `${indent}  case ${memberName.charCodeAt(0)}: { // ${memberName}\n`;
           DESERIALIZE += `${indent}    store<${member.type}>(ptr, JSON.__deserialize<${member.type}>(valStart, valEnd, ${dst}), offsetof<this>(${JSON.stringify(member.name)}));\n`;

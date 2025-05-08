@@ -43,6 +43,8 @@ export function deserializeStruct<T>(srcStart: usize, srcEnd: usize, dst: usize)
       // isKey = !isKey;
       srcStart += 2;
     } else {
+
+      // String
       if (code == QUOTE) {
         lastIndex = srcStart;
         srcStart += 2;
@@ -60,7 +62,9 @@ export function deserializeStruct<T>(srcStart: usize, srcEnd: usize, dst: usize)
           }
           srcStart += 2;
         }
-      } else if (code - 48 <= 9 || code == 45) {
+
+      // Number
+      } else if (code <= 57) {
         lastIndex = srcStart;
         srcStart += 2;
         while (srcStart < srcEnd) {
@@ -79,6 +83,8 @@ export function deserializeStruct<T>(srcStart: usize, srcEnd: usize, dst: usize)
           }
           srcStart += 2;
         }
+
+      // Struct
       } else if (code == BRACE_LEFT) {
         lastIndex = srcStart;
         depth++;
@@ -103,6 +109,8 @@ export function deserializeStruct<T>(srcStart: usize, srcEnd: usize, dst: usize)
           } else if (code == BRACE_LEFT) depth++;
           srcStart += 2;
         }
+
+      // Array
       } else if (code == BRACKET_LEFT) {
         lastIndex = srcStart;
         depth++;

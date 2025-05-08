@@ -2,12 +2,12 @@
 
 mkdir -p ./build
 
-for file in ./assembly/__tests__/*.spec.ts; do
+for file in ./assembly/__tests__/*.node.ts; do
   filename=$(basename -- "$file")
   output="./build/${filename%.ts}.wasm"
 
   start_time=$(date +%s%3N)
-  npx asc "$file" --config ./node_modules/@assemblyscript/wasi-shim/asconfig.json --transform ./transform -o "$output" || { echo "Tests failed"; exit 1; }
+  npx asc "$file" --bindings esm --transform ./transform -o "$output" || { echo "Tests failed"; exit 1; }
   end_time=$(date +%s%3N) 
 
   build_time=$((end_time - start_time))
@@ -21,7 +21,7 @@ for file in ./assembly/__tests__/*.spec.ts; do
   fi
 
   echo " -> $filename (built in $formatted_time)"
-  wasmtime "$output" || { echo "Tests failed"; exit 1; }
+  node "./assembly/__tests__/${filename%.ts}.js" || { echo "Tests failed"; exit 1; }
 done
 
 echo "All tests passed"

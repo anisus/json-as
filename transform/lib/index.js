@@ -1,7 +1,7 @@
 import { Node } from "assemblyscript/dist/assemblyscript.js";
 import { Transform } from "assemblyscript/dist/transform.js";
 import { Visitor } from "./visitor.js";
-import { SimpleParser, toString } from "./util.js";
+import { isStdlib, SimpleParser, toString } from "./util.js";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { Property, PropertyFlags, Schema } from "./types.js";
@@ -514,13 +514,30 @@ class JSONTransform extends Visitor {
 export default class Transformer extends Transform {
     afterParse(parser) {
         const transformer = new JSONTransform();
-        const sources = parser.sources.sort((_a, _b) => {
-            const a = _a.internalPath;
-            const b = _b.internalPath;
-            if (a[0] == "~" && b[0] !== "~") {
+        const sources = parser.sources
+            .filter((source) => {
+            const p = source.internalPath;
+            if (p.startsWith("~lib/rt") ||
+                p.startsWith("~lib/performance") ||
+                p.startsWith("~lib/wasi_") ||
+                p.startsWith("~lib/shared/")) {
+                return false;
+            }
+            return !isStdlib(source);
+        })
+            .sort((a, b) => {
+            if (a.sourceKind >= 2 && b.sourceKind <= 1) {
                 return -1;
             }
-            else if (a[0] !== "~" && b[0] == "~") {
+            else if (a.sourceKind <= 1 && b.sourceKind >= 2) {
+                return 1;
+            }
+            else {
+                return 0;
+            }
+        })
+            .sort((a, b) => {
+            if (a.sourceKind === 1) {
                 return 1;
             }
             else {

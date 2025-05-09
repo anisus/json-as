@@ -1,7 +1,7 @@
 import { ClassDeclaration, FieldDeclaration, IdentifierExpression, Parser, Source, NodeKind, CommonFlags, ImportStatement, Node, Tokenizer, SourceKind, NamedTypeNode, Range, FEATURE_SIMD, FunctionExpression, MethodDeclaration, Statement } from "assemblyscript/dist/assemblyscript.js";
 import { Transform } from "assemblyscript/dist/transform.js";
 import { Visitor } from "./visitor.js";
-import { SimpleParser, toString } from "./util.js";
+import { isStdlib, SimpleParser, toString } from "./util.js";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { Property, PropertyFlags, Schema } from "./types.js";
@@ -611,31 +611,43 @@ class JSONTransform extends Visitor {
 }
 
 export default class Transformer extends Transform {
-  // Trigger the transform after parse.
   afterParse(parser: Parser): void {
-    // Create new transform
     const transformer = new JSONTransform();
 
-    // Sort the sources so that user scripts are visited last
-    const sources = parser.sources.sort((_a, _b) => {
-      const a = _a.internalPath;
-      const b = _b.internalPath;
-      if (a[0] == "~" && b[0] !== "~") {
-        return -1;
-      } else if (a[0] !== "~" && b[0] == "~") {
-        return 1;
-      } else {
-        return 0;
-      }
-    });
+    const sources = parser.sources
+      .filter((source) => {
+        const p = source.internalPath;
+        if (
+          p.startsWith("~lib/rt") ||
+          p.startsWith("~lib/performance") ||
+          p.startsWith("~lib/wasi_") ||
+          p.startsWith("~lib/shared/")
+        ) {
+          return false;
+        }
+        return !isStdlib(source);
+      })
+      .sort((a, b) => {
+        if (a.sourceKind >= 2 && b.sourceKind <= 1) {
+          return -1;
+        } else if (a.sourceKind <= 1 && b.sourceKind >= 2) {
+          return 1;
+        } else {
+          return 0;
+        }
+      })
+      .sort((a, b) => {
+        if (a.sourceKind === SourceKind.UserEntry) {
+          return 1;
+        } else {
+          return 0;
+        }
+      });
 
     transformer.parser = parser;
-    // Loop over every source
     for (const source of sources) {
-      // console.log("Source: " + source.normalizedPath);
       transformer.imports = [];
       transformer.currentSource = source;
-      // Ignore all lib and std. Visit everything else.
       transformer.visit(source);
 
       if (transformer.topStatements.length) {
@@ -643,7 +655,7 @@ export default class Transformer extends Transform {
         transformer.topStatements = [];
       }
     }
-    // Check that every parent and child class is hooked up correctly
+    
     const schemas = transformer.schemas;
     for (const schema of schemas) {
       if (schema.parent) {

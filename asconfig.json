@@ -3,5 +3,6 @@
   "options": {
     "transform": [],
     "disableWarning": []
-  }
+  },
+  "extends": "./node_modules/@assemblyscript/wasi-shim/asconfig.json"
 }

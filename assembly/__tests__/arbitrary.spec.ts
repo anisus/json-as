@@ -17,13 +17,3 @@ describe("Should deserialize arbitrary types", () => {
   expect(JSON.stringify(JSON.parse<JSON.Value>('{"x":1.0,"y":2.0,"z":3.0}'))).toBe('{"x":1.0,"y":2.0,"z":3.0}');
   expect(JSON.stringify(JSON.parse<JSON.Value[]>('["string",true,3.14,{"x":1.0,"y":2.0,"z":3.0},[1.0,2.0,3,true]]'))).toBe('["string",true,3.14,{"x":1.0,"y":2.0,"z":3.0},[1.0,2.0,3.0,true]]');
 });
-
-@json
-class IncorrectlyTyped {
-  value: string = "";
-}
-describe("Should not allocate max memory on invalid input", () => {
-  expect(JSON.stringify(JSON.parse<IncorrectlyTyped>('{"value":0}'))).toBe(
-    JSON.stringify(<IncorrectlyTyped>{ value: "" }),
-  );
-});

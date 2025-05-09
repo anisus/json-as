@@ -429,7 +429,7 @@ export namespace JSON {
     // @ts-ignore: type
     private storage: Map<string, JSON.Value> = new Map<string, JSON.Value>();
 
-    constructor() { }
+    constructor() {}
 
     // @ts-ignore: decorator
     @inline get size(): i32 {
@@ -479,7 +479,6 @@ export namespace JSON {
       const out = changetype<JSON.Obj>(__new(offsetof<JSON.Obj>(), idof<JSON.Obj>()));
 
       if (value instanceof Map) {
-
       }
       return out;
     }
@@ -580,7 +579,7 @@ export namespace JSON {
     } else if (isFloat<T>()) {
       return deserializeFloat<T>(srcStart, srcEnd);
     } else if (isString<T>()) {
-      if ((srcEnd - srcStart) < 4) throw new Error("Cannot parse data as string because it was formatted incorrectly!");
+      if (srcEnd - srcStart < 4) throw new Error("Cannot parse data as string because it was formatted incorrectly!");
       // @ts-ignore: type
       return deserializeString(srcStart, srcEnd, dst);
     } else if (isArray<T>()) {
@@ -632,9 +631,15 @@ export namespace JSON {
 }
 
 // @ts-ignore: inline
-@inline export function toRaw(data: string): JSON.Raw { return new JSON.Raw(data) }
+@inline export function toRaw(data: string): JSON.Raw {
+  return new JSON.Raw(data);
+}
 // @ts-ignore: inline
-@inline export function fromRaw(data: JSON.Raw): string { return data.data }
+@inline export function fromRaw(data: JSON.Raw): string {
+  return data.data;
+}
 
 // @ts-ignore: inline
-@inline export function toBox<T>(data: T): JSON.Box<T> { return new JSON.Box<T>(data) }
+@inline export function toBox<T>(data: T): JSON.Box<T> {
+  return new JSON.Box<T>(data);
+}

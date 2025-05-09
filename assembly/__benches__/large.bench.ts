@@ -8,6 +8,7 @@ class Vec3 {
   public y!: i32;
   public z!: i32;
 
+
   @inline __SERIALIZE(ptr: usize): void {
     bs.proposeSize(98);
     store<u64>(bs.offset, 9570664606466171, 0); // {"x"
@@ -26,9 +27,11 @@ class Vec3 {
     bs.offset += 2;
   }
 
+
   @inline __INITIALIZE(): this {
     return this;
   }
+
 
   @inline __DESERIALIZE(keyStart: usize, keyEnd: usize, valStart: usize, valEnd: usize, ptr: usize): void {
     switch (load<u16>(keyStart)) {

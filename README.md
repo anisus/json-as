@@ -69,6 +69,7 @@ If you'd like to see the code that the transform generates, run the build step w
 ```typescript
 import { JSON } from "json-as";
 
+
 @json
 class Vec3 {
   x: f32 = 0.0;
@@ -76,8 +77,10 @@ class Vec3 {
   z: f32 = 0.0;
 }
 
+
 @json
 class Player {
+
   @alias("first name")
   firstName!: string;
   lastName!: string;
@@ -85,6 +88,7 @@ class Player {
   // Drop in a code block, function, or expression that evaluates to a boolean
   @omitif((self: Player) => self.age < 18)
   age!: i32;
+
   @omitnull()
   pos!: Vec3 | null;
   isVerified!: boolean;
@@ -101,7 +105,7 @@ const player: Player = {
     z: 8.3,
   },
   isVerified: true,
-}
+};
 
 const serialized = JSON.stringify<Player>(player);
 const deserialized = JSON.parse<Player>(serialized);
@@ -121,9 +125,11 @@ This library allows selective omission of fields during serialization using the 
 This decorator excludes a field from serialization entirely.
 
 ```typescript
+
 @json
 class Example {
   name!: string;
+
   @omit
   SSN!: string;
 }
@@ -140,9 +146,11 @@ console.log(JSON.stringify(obj)); // { "name": "Jairus" }
 This decorator omits a field only if its value is null.
 
 ```typescript
+
 @json
 class Example {
   name!: string;
+
   @omitnull()
   optionalField!: string | null;
 }
@@ -159,9 +167,11 @@ console.log(JSON.stringify(obj)); // { "name": "Jairus" }
 This decorator omits a field based on a custom predicate function.
 
 ```typescript
+
 @json
 class Example {
   name!: string;
+
   @omitif((self: Example) => self.age <= 18)
   age!: number;
 }
@@ -186,6 +196,7 @@ AssemblyScript doesn't support using nullable primitive types, so instead, json-
 For example, this schema won't compile in AssemblyScript:
 
 ```typescript
+
 @json
 class Person {
   name!: string;
@@ -196,6 +207,7 @@ class Person {
 Instead, use `JSON.Box` to allow nullable primitives:
 
 ```typescript
+
 @json
 class Person {
   name: string;
@@ -239,11 +251,12 @@ When dealing with an object with an unknown structure, use the `JSON.Obj` type
 const obj = JSON.parse<JSON.Obj>('{"a":3.14,"b":true,"c":[1,2,3],"d":{"x":1,"y":2,"z":3}}');
 
 console.log("Keys: " + obj.keys().join(" ")); // a b c d
-console.log("Values: " +
-  obj
-    .values()
-    .map<string>((v) => JSON.stringify(v))
-    .join(" "),
+console.log(
+  "Values: " +
+    obj
+      .values()
+      .map<string>((v) => JSON.stringify(v))
+      .join(" "),
 ); // 3.14 true [1,2,3] {"x":1,"y":2,"z":3}
 
 const y = obj.get("d")!.get<JSON.Obj>().get("y")!;
@@ -257,6 +270,7 @@ More often, objects will be completely statically typed except for one or two va
 In such cases, `JSON.Value` can be used to handle fields that may hold different types at runtime.
 
 ```typescript
+
 @json
 class DynamicObj {
   id: i32 = 0;
@@ -313,6 +327,7 @@ Here's an example of creating a custom data type called `Point` which serializes
 ```typescript
 import { bytes } from "json-as/assembly/util";
 
+
 @json
 class Point {
   x: f64 = 0.0;
@@ -322,10 +337,12 @@ class Point {
     this.y = y;
   }
 
+
   @serializer
   serializer(self: Point): string {
     return `(${self.x},${self.y})`;
   }
+
 
   @deserializer
   deserializer(data: string): Point {
@@ -403,6 +420,7 @@ These benchmarks compare this library to JavaScript's native `JSON.stringify` an
 - JSON-AS consistently outperforms JavaScript's native implementation.
 
 - **Serialization Speed:**
+
   - JSON-AS achieves speeds up to `2,133 MB/s`, significantly faster than JavaScript's peak of `1,416 MB/s`.
   - Large objects see the biggest improvement, with JSON-AS at `2,074 MB/s` vs. JavaScript’s `749.7 MB/s`.
 

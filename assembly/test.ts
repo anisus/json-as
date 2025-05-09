@@ -1,4 +1,5 @@
 import { JSON } from ".";
+import { deserializeString } from "./deserialize/simple/string";
 import { bytes } from "./util";
 
 @json
@@ -139,13 +140,4 @@ const a12 = JSON.parse<InnerObj<ObjWithBracketString>>('{"obj":{"data":"hello} w
 
 console.log("a12: " + JSON.stringify(a12))
 
-
-@json
-class NullableObj {
-  bar: Bar | null = null;
-}
-
-@json
-class Bar {
-  value: string = "";
-}
+const a13 = JSON.parse<string>("0");

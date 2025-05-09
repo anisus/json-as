@@ -179,6 +179,7 @@ export namespace JSON {
       // @ts-ignore
       return null;
     } else if (isString<T>()) {
+      if (dataSize < 4) throw new Error("Cannot parse data as string because it was formatted incorrectly!");
       // @ts-ignore
       return deserializeString(dataPtr, dataPtr + dataSize, __new(dataSize - 4, idof<string>()));
     } else if (isArray<T>()) {
@@ -579,6 +580,7 @@ export namespace JSON {
     } else if (isFloat<T>()) {
       return deserializeFloat<T>(srcStart, srcEnd);
     } else if (isString<T>()) {
+      if ((srcEnd - srcStart) < 4) throw new Error("Cannot parse data as string because it was formatted incorrectly!");
       // @ts-ignore: type
       return deserializeString(srcStart, srcEnd, dst);
     } else if (isArray<T>()) {

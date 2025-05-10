@@ -5,13 +5,14 @@ import { bytes } from "../../util";
 
 export function serializeObject(data: JSON.Obj): void {
   if (!data.size) {
-    store<u32>(bs.offset, 0);
+    bs.proposeSize(4);
+    store<u32>(bs.offset, 8192123);
     bs.offset += 4;
     return;
   }
 
-  // This grabs `JSON.Obj.stackSize` which is private
-  bs.ensureSize(load<u32>(changetype<usize>(data), offsetof<JSON.Obj>("stackSize")) - 2);
+
+  bs.proposeSize(load<u32>(changetype<usize>(data), offsetof<JSON.Obj>("stackSize")) - 2);
   const keys = data.keys();
   const values = data.values();
 

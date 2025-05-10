@@ -1,4 +1,4 @@
-import { ClassDeclaration, FieldDeclaration, IdentifierExpression, Parser, Source, NodeKind, CommonFlags, ImportStatement, Node, Tokenizer, SourceKind, NamedTypeNode, Range, FEATURE_SIMD, FunctionExpression, MethodDeclaration, Statement } from "assemblyscript/dist/assemblyscript.js";
+import { ClassDeclaration, FieldDeclaration, IdentifierExpression, Parser, Source, NodeKind, CommonFlags, ImportStatement, Node, Tokenizer, SourceKind, NamedTypeNode, Range, FEATURE_SIMD, FunctionExpression, MethodDeclaration, Statement, Program } from "assemblyscript/dist/assemblyscript.js";
 import { Transform } from "assemblyscript/dist/transform.js";
 import { Visitor } from "./visitor.js";
 import { isStdlib, SimpleParser, toString } from "./util.js";
@@ -10,6 +10,8 @@ import { getClasses, getImportedClass } from "./linker.js";
 let indent = "  ";
 
 class JSONTransform extends Visitor {
+  public program!: Program;
+  public baseDir!: string;
   public parser!: Parser;
   public schemas: Schema[] = [];
   public schema!: Schema;
@@ -456,7 +458,7 @@ class JSONTransform extends Visitor {
   addRequiredImports(node: Source): void {
     const filePath = fileURLToPath(import.meta.url);
     const baseDir = path.resolve(filePath, "..", "..", "..");
-    const nodePath = path.resolve(process.cwd(), node.range.source.normalizedPath);
+    const nodePath = path.resolve(this.baseDir, node.range.source.normalizedPath);
 
     const bsImport = this.imports.find((i) => i.declarations?.find((d) => d.foreignName.text == "bs" || d.name.text == "bs"));
     const jsonImport = this.imports.find((i) => i.declarations?.find((d) => d.foreignName.text == "JSON" || d.name.text == "JSON"));
@@ -535,7 +537,6 @@ class JSONTransform extends Visitor {
 export default class Transformer extends Transform {
   afterParse(parser: Parser): void {
     const transformer = new JSONTransform();
-
     const sources = parser.sources
       .filter((source) => {
         const p = source.internalPath;
@@ -561,6 +562,8 @@ export default class Transformer extends Transform {
         }
       });
 
+    transformer.baseDir = path.join(process.cwd(), this.baseDir);
+    transformer.program = this.program;
     transformer.parser = parser;
     for (const source of sources) {
       transformer.imports = [];

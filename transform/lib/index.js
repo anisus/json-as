@@ -16,6 +16,7 @@ class JSONTransform extends Visitor {
     sources = new Set();
     imports = [];
     topStatements = [];
+    simdStatements = [];
     visitClassDeclaration(node) {
         if (!node.decorators?.length)
             return;
@@ -219,12 +220,13 @@ class JSONTransform extends Visitor {
             else if (member.type == "string" || member.type == "String") {
                 INITIALIZE += `  this.${member.name} = "";\n`;
             }
+            const SIMD_ENABLED = this.program.options.hasFeature(16);
             if (!isRegular && !member.flags.has(PropertyFlags.OmitIf) && !member.flags.has(PropertyFlags.OmitNull))
                 isRegular = true;
             if (isRegular && isPure) {
                 const keyPart = (isFirst ? "{" : ",") + aliasName + ":";
                 this.schema.byteSize += keyPart.length << 1;
-                SERIALIZE += this.getStores(keyPart)
+                SERIALIZE += this.getStores(keyPart, SIMD_ENABLED)
                     .map((v) => indent + v + "\n")
                     .join("");
                 SERIALIZE += indent + `JSON.__serialize<${member.type}>(load<${member.type}>(ptr, offsetof<this>(${JSON.stringify(realName)})));\n`;
@@ -234,7 +236,7 @@ class JSONTransform extends Visitor {
             else if (isRegular && !isPure) {
                 const keyPart = (isFirst ? "" : ",") + aliasName + ":";
                 this.schema.byteSize += keyPart.length << 1;
-                SERIALIZE += this.getStores(keyPart)
+                SERIALIZE += this.getStores(keyPart, SIMD_ENABLED)
                     .map((v) => indent + v + "\n")
                     .join("");
                 SERIALIZE += indent + `JSON.__serialize<${member.type}>(load<${member.type}>(ptr, offsetof<this>(${JSON.stringify(realName)})));\n`;
@@ -247,7 +249,7 @@ class JSONTransform extends Visitor {
                     indentInc();
                     const keyPart = aliasName + ":";
                     this.schema.byteSize += keyPart.length << 1;
-                    SERIALIZE += this.getStores(keyPart)
+                    SERIALIZE += this.getStores(keyPart, SIMD_ENABLED)
                         .map((v) => indent + v + "\n")
                         .join("");
                     SERIALIZE += indent + `JSON.__serialize<${member.type}>(load<${member.type}>(ptr, offsetof<this>(${JSON.stringify(realName)})));\n`;
@@ -271,7 +273,7 @@ class JSONTransform extends Visitor {
                         SERIALIZE += indent + `if (${toString(member.flags.get(PropertyFlags.OmitIf))}) {\n`;
                     }
                     indentInc();
-                    SERIALIZE += this.getStores(aliasName + ":")
+                    SERIALIZE += this.getStores(aliasName + ":", SIMD_ENABLED)
                         .map((v) => indent + v + "\n")
                         .join("");
                     SERIALIZE += indent + `JSON.__serialize<${member.type}>(load<${member.type}>(ptr, offsetof<this>(${JSON.stringify(realName)})));\n`;
@@ -448,6 +450,14 @@ class JSONTransform extends Visitor {
         const sizes = strToNum(data, simd);
         let offset = 0;
         for (const [size, num] of sizes) {
+            if (size == "v128" && simd) {
+                let index = this.simdStatements.findIndex((v) => v.includes(num));
+                let name = "SIMD_" + (index == -1 ? this.simdStatements.length : index);
+                if (index && !this.simdStatements.includes(`const ${name} = ${num};`))
+                    this.simdStatements.push(`const ${name} = ${num};`);
+                out.push("store<v128>(bs.offset, " + name + ", " + offset + "); // " + data.slice(offset >> 1, (offset >> 1) + 8));
+                offset += 16;
+            }
             if (size == "u64") {
                 out.push("store<u64>(bs.offset, " + num + ", " + offset + "); // " + data.slice(offset >> 1, (offset >> 1) + 4));
                 offset += 8;
@@ -512,7 +522,6 @@ export default class Transformer extends Transform {
             }
         });
         transformer.baseDir = path.join(process.cwd(), this.baseDir);
-        console.log("base dir: " + transformer.baseDir);
         transformer.program = this.program;
         transformer.parser = parser;
         for (const source of sources) {
@@ -523,6 +532,11 @@ export default class Transformer extends Transform {
                 source.statements.unshift(...transformer.topStatements);
                 transformer.topStatements = [];
             }
+            if (transformer.simdStatements.length) {
+                for (const simd of transformer.simdStatements)
+                    source.statements.unshift(SimpleParser.parseTopLevelStatement(simd));
+            }
+            transformer.simdStatements = [];
         }
         const schemas = transformer.schemas;
         for (const schema of schemas) {

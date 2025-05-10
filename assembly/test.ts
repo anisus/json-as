@@ -139,7 +139,7 @@ const a10 = JSON.stringify(m10);
 
 console.log("a10: " + a10);
 
-const a11 = JSON.parse<Vec3>('  {  "x"  :  3.4  ,  "y"   :   1.2    ,  "z"  :  8.3   }     ');
+const a11 = JSON.parse<JSON.Obj>('  {  "x"  :  3.4  ,  "y"   :   1.2    ,  "z"  :  8.3   }     ');
 
 console.log("a11: " + JSON.stringify(a11));
 
@@ -147,4 +147,6 @@ const a12 = JSON.parse<InnerObj<ObjWithBracketString>>('{"obj":{"data":"hello} w
 
 console.log("a12: " + JSON.stringify(a12));
 
-const a13 = JSON.parse<string>("0");
+const a13 = JSON.stringify<JSON.Obj>(new JSON.Obj());
+
+console.log("a13: " + a13);

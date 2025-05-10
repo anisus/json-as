@@ -6,6 +6,7 @@ import * as path from "path";
 import { fileURLToPath } from "url";
 import { Property, PropertyFlags, Schema } from "./types.js";
 import { getClasses, getImportedClass } from "./linker.js";
+import { Feature } from "types:assemblyscript/src/common";
 
 let indent = "  ";
 
@@ -19,6 +20,7 @@ class JSONTransform extends Visitor {
   public imports: ImportStatement[] = [];
 
   public topStatements: Statement[] = [];
+  public simdStatements: string[] = [];
 
   visitClassDeclaration(node: ClassDeclaration): void {
     if (!node.decorators?.length) return;
@@ -235,11 +237,12 @@ class JSONTransform extends Visitor {
         INITIALIZE += `  this.${member.name} = "";\n`;
       }
 
+      const SIMD_ENABLED = this.program.options.hasFeature(Feature.Simd);
       if (!isRegular && !member.flags.has(PropertyFlags.OmitIf) && !member.flags.has(PropertyFlags.OmitNull)) isRegular = true;
       if (isRegular && isPure) {
         const keyPart = (isFirst ? "{" : ",") + aliasName + ":";
         this.schema.byteSize += keyPart.length << 1;
-        SERIALIZE += this.getStores(keyPart)
+        SERIALIZE += this.getStores(keyPart, SIMD_ENABLED)
           .map((v) => indent + v + "\n")
           .join("");
         SERIALIZE += indent + `JSON.__serialize<${member.type}>(load<${member.type}>(ptr, offsetof<this>(${JSON.stringify(realName)})));\n`;
@@ -247,7 +250,7 @@ class JSONTransform extends Visitor {
       } else if (isRegular && !isPure) {
         const keyPart = (isFirst ? "" : ",") + aliasName + ":";
         this.schema.byteSize += keyPart.length << 1;
-        SERIALIZE += this.getStores(keyPart)
+        SERIALIZE += this.getStores(keyPart, SIMD_ENABLED)
           .map((v) => indent + v + "\n")
           .join("");
         SERIALIZE += indent + `JSON.__serialize<${member.type}>(load<${member.type}>(ptr, offsetof<this>(${JSON.stringify(realName)})));\n`;
@@ -258,7 +261,7 @@ class JSONTransform extends Visitor {
           indentInc();
           const keyPart = aliasName + ":";
           this.schema.byteSize += keyPart.length << 1;
-          SERIALIZE += this.getStores(keyPart)
+          SERIALIZE += this.getStores(keyPart, SIMD_ENABLED)
             .map((v) => indent + v + "\n")
             .join("");
           SERIALIZE += indent + `JSON.__serialize<${member.type}>(load<${member.type}>(ptr, offsetof<this>(${JSON.stringify(realName)})));\n`;
@@ -284,7 +287,7 @@ class JSONTransform extends Visitor {
             SERIALIZE += indent + `if (${toString(member.flags.get(PropertyFlags.OmitIf))}) {\n`;
           }
           indentInc();
-          SERIALIZE += this.getStores(aliasName + ":")
+          SERIALIZE += this.getStores(aliasName + ":", SIMD_ENABLED)
             .map((v) => indent + v + "\n")
             .join("");
           SERIALIZE += indent + `JSON.__serialize<${member.type}>(load<${member.type}>(ptr, offsetof<this>(${JSON.stringify(realName)})));\n`;
@@ -496,14 +499,14 @@ class JSONTransform extends Visitor {
     const sizes = strToNum(data, simd);
     let offset = 0;
     for (const [size, num] of sizes) {
-      // if (size == "v128") {
-      //   // This could be put in its own file
-      //   let index = this.newStmts.simd.findIndex((v) => v.includes(num));
-      //   let name = "SIMD_" + (index == -1 ? this.newStmts.simd.length : index);
-      //   if (index && !this.newStmts.simd.includes(`const ${name} = ${num};`)) this.newStmts.simd.push(`const ${name} = ${num};`);
-      //   out.push("store<v128>(bs.offset, " + name + ", " + offset + "); // " + data.slice(offset >> 1, (offset >> 1) + 8));
-      //   offset += 16;
-      // }
+      if (size == "v128" && simd) {
+        // This could be put in its own file
+        let index = this.simdStatements.findIndex((v) => v.includes(num));
+        let name = "SIMD_" + (index == -1 ? this.simdStatements.length : index);
+        if (index && !this.simdStatements.includes(`const ${name} = ${num};`)) this.simdStatements.push(`const ${name} = ${num};`);
+        out.push("store<v128>(bs.offset, " + name + ", " + offset + "); // " + data.slice(offset >> 1, (offset >> 1) + 8));
+        offset += 16;
+      }
       if (size == "u64") {
         out.push("store<u64>(bs.offset, " + num + ", " + offset + "); // " + data.slice(offset >> 1, (offset >> 1) + 4));
         offset += 8;
@@ -574,6 +577,11 @@ export default class Transformer extends Transform {
         source.statements.unshift(...transformer.topStatements);
         transformer.topStatements = [];
       }
+      if (transformer.simdStatements.length) {
+        for (const simd of transformer.simdStatements)
+          source.statements.unshift(SimpleParser.parseTopLevelStatement(simd));
+      }
+      transformer.simdStatements = [];
     }
 
     const schemas = transformer.schemas;
@@ -666,7 +674,6 @@ function strToNum(data: string, simd: boolean = false, offset: number = 0): stri
 
   while (n >= 8 && simd) {
     out.push(["v128", "i16x8(" + data.charCodeAt(offset + 0) + ", " + data.charCodeAt(offset + 1) + ", " + data.charCodeAt(offset + 2) + ", " + data.charCodeAt(offset + 3) + ", " + data.charCodeAt(offset + 4) + ", " + data.charCodeAt(offset + 5) + ", " + data.charCodeAt(offset + 6) + ", " + data.charCodeAt(offset + 7) + ")"]);
-
     offset += 8;
     n -= 8;
   }

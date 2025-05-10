@@ -28,6 +28,7 @@ import { serializeObject } from "./serialize/simple/object";
 import { deserializeObject } from "./deserialize/simple/object";
 import { serializeRaw } from "./serialize/simple/raw";
 import { deserializeRaw } from "./deserialize/simple/raw";
+import { isSpace } from "util/string";
 
 /**
  * Offset of the 'storage' property in the JSON.Value class.
@@ -211,6 +212,7 @@ export namespace JSON {
         // @ts-ignore: type
         return deserializeRaw(dataPtr, dataPtr + dataSize);
       } else if (type instanceof JSON.Value) {
+        // should cut out whitespace here
         // @ts-ignore
         return inline.always(deserializeArbitrary(dataPtr, dataPtr + dataSize, 0));
       } else if (type instanceof JSON.Obj) {

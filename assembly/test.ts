@@ -1,7 +1,5 @@
 import { JSON } from ".";
-import { deserializeString } from "./deserialize/simple/string";
 import { bytes } from "./util";
-
 
 @json
 class Obj {

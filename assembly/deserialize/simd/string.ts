@@ -1,8 +1,6 @@
 import { BACK_SLASH } from "../../custom/chars";
 import { DESERIALIZE_ESCAPE_TABLE, ESCAPE_HEX_TABLE } from "../../globals/tables";
 
-const SPLAT_92 = i16x8.splat(92); /* \ */
-
 /**
  * Deserializes strings back into into their original form using SIMD operations
  * @param src string to deserialize
@@ -11,6 +9,7 @@ const SPLAT_92 = i16x8.splat(92); /* \ */
  */
 // todo: optimize and stuff. it works, its not pretty. ideally, i'd like this to be (nearly) branchless
 export function deserializeString_SIMD(srcStart: usize, srcEnd: usize, dst: usize): usize {
+  const SPLAT_92 = i16x8.splat(92); /* \ */
   let src_ptr = srcStart + 2;
   let dst_ptr = changetype<usize>(dst);
 

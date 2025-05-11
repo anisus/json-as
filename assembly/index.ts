@@ -28,6 +28,8 @@ import { serializeObject } from "./serialize/simple/object";
 import { deserializeObject } from "./deserialize/simple/object";
 import { serializeRaw } from "./serialize/simple/raw";
 import { deserializeRaw } from "./deserialize/simple/raw";
+import { isSpace } from "util/string";
+import { deserializeString_SIMD } from "./deserialize/simd/string";
 
 /**
  * Offset of the 'storage' property in the JSON.Value class.
@@ -179,8 +181,14 @@ export namespace JSON {
       // @ts-ignore
       return null;
     } else if (isString<T>()) {
+      if (dataSize < 4) throw new Error("Cannot parse data as string because it was formatted incorrectly!");
+      // if (ASC_FEATURE_SIMD) {
+      // // @ts-ignore
+      //   return changetype<string>(deserializeString_SIMD(dataPtr, dataPtr + dataSize, __new(dataSize - 4, idof<string>())));
+      // } else {
       // @ts-ignore
       return deserializeString(dataPtr, dataPtr + dataSize, __new(dataSize - 4, idof<string>()));
+      // }
     } else if (isArray<T>()) {
       // @ts-ignore
       return inline.always(deserializeArray<nonnull<T>>(dataPtr, dataPtr + dataSize, changetype<usize>(instantiate<T>())));
@@ -210,6 +218,7 @@ export namespace JSON {
         // @ts-ignore: type
         return deserializeRaw(dataPtr, dataPtr + dataSize);
       } else if (type instanceof JSON.Value) {
+        // should cut out whitespace here
         // @ts-ignore
         return inline.always(deserializeArbitrary(dataPtr, dataPtr + dataSize, 0));
       } else if (type instanceof JSON.Obj) {
@@ -478,7 +487,6 @@ export namespace JSON {
       const out = changetype<JSON.Obj>(__new(offsetof<JSON.Obj>(), idof<JSON.Obj>()));
 
       if (value instanceof Map) {
-
       }
       return out;
     }
@@ -579,6 +587,7 @@ export namespace JSON {
     } else if (isFloat<T>()) {
       return deserializeFloat<T>(srcStart, srcEnd);
     } else if (isString<T>()) {
+      if (srcEnd - srcStart < 4) throw new Error("Cannot parse data as string because it was formatted incorrectly!");
       // @ts-ignore: type
       return deserializeString(srcStart, srcEnd, dst);
     } else if (isArray<T>()) {
@@ -630,9 +639,15 @@ export namespace JSON {
 }
 
 // @ts-ignore: inline
-@inline export function toRaw(data: string): JSON.Raw { return new JSON.Raw(data) }
+@inline export function toRaw(data: string): JSON.Raw {
+  return new JSON.Raw(data);
+}
 // @ts-ignore: inline
-@inline export function fromRaw(data: JSON.Raw): string { return data.data }
+@inline export function fromRaw(data: JSON.Raw): string {
+  return data.data;
+}
 
 // @ts-ignore: inline
-@inline export function toBox<T>(data: T): JSON.Box<T> { return new JSON.Box<T>(data) }
+@inline export function toBox<T>(data: T): JSON.Box<T> {
+  return new JSON.Box<T>(data);
+}

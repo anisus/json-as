@@ -1,15 +1,18 @@
-import { ClassDeclaration, FieldDeclaration, IdentifierExpression, Parser, Source, NodeKind, CommonFlags, ImportStatement, Node, Tokenizer, SourceKind, NamedTypeNode, Range, FEATURE_SIMD, FunctionExpression, MethodDeclaration, Statement } from "assemblyscript/dist/assemblyscript.js";
+import { ClassDeclaration, FieldDeclaration, IdentifierExpression, Parser, Source, NodeKind, CommonFlags, ImportStatement, Node, Tokenizer, SourceKind, NamedTypeNode, Range, FEATURE_SIMD, FunctionExpression, MethodDeclaration, Statement, Program } from "assemblyscript/dist/assemblyscript.js";
 import { Transform } from "assemblyscript/dist/transform.js";
 import { Visitor } from "./visitor.js";
-import { SimpleParser, toString } from "./util.js";
+import { isStdlib, SimpleParser, toString } from "./util.js";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { Property, PropertyFlags, Schema } from "./types.js";
 import { getClasses, getImportedClass } from "./linker.js";
+import { Feature } from "types:assemblyscript/src/common";
 
 let indent = "  ";
 
 class JSONTransform extends Visitor {
+  public program!: Program;
+  public baseDir!: string;
   public parser!: Parser;
   public schemas: Schema[] = [];
   public schema!: Schema;
@@ -17,6 +20,7 @@ class JSONTransform extends Visitor {
   public imports: ImportStatement[] = [];
 
   public topStatements: Statement[] = [];
+  public simdStatements: string[] = [];
 
   visitClassDeclaration(node: ClassDeclaration): void {
     if (!node.decorators?.length) return;
@@ -37,8 +41,8 @@ class JSONTransform extends Visitor {
     if (process.env["JSON_DEBUG"]) console.log("Created schema: " + this.schema.name + " in file " + node.range.source.normalizedPath);
 
     const members: FieldDeclaration[] = [...(node.members.filter((v) => v.kind === NodeKind.FieldDeclaration && v.flags !== CommonFlags.Static && v.flags !== CommonFlags.Private && v.flags !== CommonFlags.Protected && !v.decorators?.some((decorator) => (<IdentifierExpression>decorator.name).text === "omit")) as FieldDeclaration[])];
-    const serializers: MethodDeclaration[] = [...(node.members.filter((v) => v.kind === NodeKind.MethodDeclaration && v.decorators && v.decorators.some((e) => (<IdentifierExpression>e.name).text.toLowerCase() === "serializer")))] as MethodDeclaration[];
-    const deserializers: MethodDeclaration[] = [...(node.members.filter((v) => v.kind === NodeKind.MethodDeclaration && v.decorators && v.decorators.some((e) => (<IdentifierExpression>e.name).text.toLowerCase() === "deserializer")))] as MethodDeclaration[];
+    const serializers: MethodDeclaration[] = [...node.members.filter((v) => v.kind === NodeKind.MethodDeclaration && v.decorators && v.decorators.some((e) => (<IdentifierExpression>e.name).text.toLowerCase() === "serializer"))] as MethodDeclaration[];
+    const deserializers: MethodDeclaration[] = [...node.members.filter((v) => v.kind === NodeKind.MethodDeclaration && v.decorators && v.decorators.some((e) => (<IdentifierExpression>e.name).text.toLowerCase() === "deserializer"))] as MethodDeclaration[];
 
     if (serializers.length > 1) throwError("Multiple serializers detected for class " + node.name.text + " but schemas can only have one serializer!", serializers[1].range);
     if (deserializers.length > 1) throwError("Multiple deserializers detected for class " + node.name.text + " but schemas can only have one deserializer!", deserializers[1].range);
@@ -51,21 +55,12 @@ class JSONTransform extends Visitor {
       if (!serializer.signature.returnType || !(<NamedTypeNode>serializer.signature.returnType).name.identifier.text.includes("string")) throwError("Could not find valid return type for serializer in " + this.schema.name + "!. Set the return type to type 'string' and try again", serializer.signature.returnType.range);
 
       if (!serializer.decorators.some((v) => (<IdentifierExpression>v.name).text == "inline")) {
-        serializer.decorators.push(
-          Node.createDecorator(
-            Node.createIdentifierExpression(
-              "inline",
-              serializer.range
-            ),
-            null,
-            serializer.range
-          )
-        );
+        serializer.decorators.push(Node.createDecorator(Node.createIdentifierExpression("inline", serializer.range), null, serializer.range));
       }
       let SERIALIZER = "";
       SERIALIZER += "  __SERIALIZE_CUSTOM(ptr: usize): void {\n";
       SERIALIZER += "    const data = this." + serializer.name.text + "(changetype<" + this.schema.name + ">(ptr));\n";
-      SERIALIZER += "    if (isNullable(data) && changetype<usize>(data) == <usize>0) throw new Error(\"Could not serialize data using custom serializer!\");\n";
+      SERIALIZER += '    if (isNullable(data) && changetype<usize>(data) == <usize>0) throw new Error("Could not serialize data using custom serializer!");\n';
       SERIALIZER += "    const dataSize = data.length << 1;\n";
       SERIALIZER += "    memory.copy(bs.offset, changetype<usize>(data), dataSize);\n";
       SERIALIZER += "    bs.offset += dataSize;\n";
@@ -86,21 +81,12 @@ class JSONTransform extends Visitor {
       if (!deserializer.signature.returnType || !((<NamedTypeNode>deserializer.signature.returnType).name.identifier.text.includes(this.schema.name) || (<NamedTypeNode>deserializer.signature.returnType).name.identifier.text.includes("this"))) throwError("Could not find valid return type for deserializer in " + this.schema.name + "!. Set the return type to type '" + this.schema.name + "' or 'this' and try again", deserializer.signature.returnType.range);
 
       if (!deserializer.decorators.some((v) => (<IdentifierExpression>v.name).text == "inline")) {
-        deserializer.decorators.push(
-          Node.createDecorator(
-            Node.createIdentifierExpression(
-              "inline",
-              deserializer.range
-            ),
-            null,
-            deserializer.range
-          )
-        );
+        deserializer.decorators.push(Node.createDecorator(Node.createIdentifierExpression("inline", deserializer.range), null, deserializer.range));
       }
       let DESERIALIZER = "";
       DESERIALIZER += "  __DESERIALIZE_CUSTOM(data: string): " + this.schema.name + " {\n";
       DESERIALIZER += "    const d = this." + deserializer.name.text + "(data)";
-      DESERIALIZER += "    if (isNullable(d) && changetype<usize>(d) == <usize>0) throw new Error(\"Could not deserialize data using custom deserializer!\");\n";
+      DESERIALIZER += '    if (isNullable(d) && changetype<usize>(d) == <usize>0) throw new Error("Could not deserialize data using custom deserializer!");\n';
       DESERIALIZER += "    return d;\n";
       DESERIALIZER += "  }\n";
 
@@ -251,11 +237,12 @@ class JSONTransform extends Visitor {
         INITIALIZE += `  this.${member.name} = "";\n`;
       }
 
+      const SIMD_ENABLED = this.program.options.hasFeature(Feature.Simd);
       if (!isRegular && !member.flags.has(PropertyFlags.OmitIf) && !member.flags.has(PropertyFlags.OmitNull)) isRegular = true;
       if (isRegular && isPure) {
         const keyPart = (isFirst ? "{" : ",") + aliasName + ":";
         this.schema.byteSize += keyPart.length << 1;
-        SERIALIZE += this.getStores(keyPart)
+        SERIALIZE += this.getStores(keyPart, SIMD_ENABLED)
           .map((v) => indent + v + "\n")
           .join("");
         SERIALIZE += indent + `JSON.__serialize<${member.type}>(load<${member.type}>(ptr, offsetof<this>(${JSON.stringify(realName)})));\n`;
@@ -263,7 +250,7 @@ class JSONTransform extends Visitor {
       } else if (isRegular && !isPure) {
         const keyPart = (isFirst ? "" : ",") + aliasName + ":";
         this.schema.byteSize += keyPart.length << 1;
-        SERIALIZE += this.getStores(keyPart)
+        SERIALIZE += this.getStores(keyPart, SIMD_ENABLED)
           .map((v) => indent + v + "\n")
           .join("");
         SERIALIZE += indent + `JSON.__serialize<${member.type}>(load<${member.type}>(ptr, offsetof<this>(${JSON.stringify(realName)})));\n`;
@@ -274,7 +261,7 @@ class JSONTransform extends Visitor {
           indentInc();
           const keyPart = aliasName + ":";
           this.schema.byteSize += keyPart.length << 1;
-          SERIALIZE += this.getStores(keyPart)
+          SERIALIZE += this.getStores(keyPart, SIMD_ENABLED)
             .map((v) => indent + v + "\n")
             .join("");
           SERIALIZE += indent + `JSON.__serialize<${member.type}>(load<${member.type}>(ptr, offsetof<this>(${JSON.stringify(realName)})));\n`;
@@ -292,12 +279,7 @@ class JSONTransform extends Visitor {
           if (member.flags.get(PropertyFlags.OmitIf).kind == NodeKind.Function) {
             const arg = member.flags.get(PropertyFlags.OmitIf) as FunctionExpression;
             // @ts-ignore: type
-            arg.declaration.signature.parameters[0].type = Node.createNamedType(
-              Node.createSimpleTypeName("this", node.range),
-              null,
-              false,
-              node.range
-            );
+            arg.declaration.signature.parameters[0].type = Node.createNamedType(Node.createSimpleTypeName("this", node.range), null, false, node.range);
             // @ts-ignore: type
             arg.declaration.signature.returnType.name = Node.createSimpleTypeName("boolean", arg.declaration.signature.returnType.name.range);
             SERIALIZE += indent + `if (!(${toString(member.flags.get(PropertyFlags.OmitIf))})(this)) {\n`;
@@ -305,7 +287,7 @@ class JSONTransform extends Visitor {
             SERIALIZE += indent + `if (${toString(member.flags.get(PropertyFlags.OmitIf))}) {\n`;
           }
           indentInc();
-          SERIALIZE += this.getStores(aliasName + ":")
+          SERIALIZE += this.getStores(aliasName + ":", SIMD_ENABLED)
             .map((v) => indent + v + "\n")
             .join("");
           SERIALIZE += indent + `JSON.__serialize<${member.type}>(load<${member.type}>(ptr, offsetof<this>(${JSON.stringify(realName)})));\n`;
@@ -480,42 +462,22 @@ class JSONTransform extends Visitor {
   }
   addRequiredImports(node: Source): void {
     const filePath = fileURLToPath(import.meta.url);
-    const baseDir = path.resolve(filePath, '..', '..', '..');
-    const nodePath = path.resolve(process.cwd(), node.range.source.normalizedPath);
+    const baseDir = path.resolve(filePath, "..", "..", "..");
+    const nodePath = path.resolve(this.baseDir, node.range.source.normalizedPath);
 
     const bsImport = this.imports.find((i) => i.declarations?.find((d) => d.foreignName.text == "bs" || d.name.text == "bs"));
     const jsonImport = this.imports.find((i) => i.declarations?.find((d) => d.foreignName.text == "JSON" || d.name.text == "JSON"));
 
-    let bsPath = path.posix.join(
-      ...(path.relative(
-        path.dirname(nodePath),
-        path.join(baseDir, "lib", "as-bs")
-      ).split(path.sep))
-    ).replace(/^.*node_modules\/json-as/, "json-as");
+    let bsPath = path.posix.join(...path.relative(path.dirname(nodePath), path.join(baseDir, "lib", "as-bs")).split(path.sep)).replace(/^.*node_modules\/json-as/, "json-as");
 
-    let jsonPath = path.posix.join(
-      ...(path.relative(
-        path.dirname(nodePath),
-        path.join(baseDir, "assembly", "index.ts")
-      ).split(path.sep))
-    ).replace(/^.*node_modules\/json-as/, "json-as");
+    let jsonPath = path.posix.join(...path.relative(path.dirname(nodePath), path.join(baseDir, "assembly", "index.ts")).split(path.sep)).replace(/^.*node_modules\/json-as/, "json-as");
 
     if (!bsImport) {
       if (node.normalizedPath.startsWith("~")) {
         bsPath = "json-as/lib/as-bs";
       }
 
-      const replaceNode = Node.createImportStatement(
-        [
-          Node.createImportDeclaration(
-            Node.createIdentifierExpression("bs", node.range, false),
-            null,
-            node.range
-          )
-        ],
-        Node.createStringLiteralExpression(bsPath, node.range),
-        node.range
-      );
+      const replaceNode = Node.createImportStatement([Node.createImportDeclaration(Node.createIdentifierExpression("bs", node.range, false), null, node.range)], Node.createStringLiteralExpression(bsPath, node.range), node.range);
       this.topStatements.push(replaceNode);
       if (process.env["JSON_DEBUG"]) console.log("Added as-bs import: " + toString(replaceNode) + "\n");
     }
@@ -525,35 +487,28 @@ class JSONTransform extends Visitor {
         jsonPath = "json-as/assembly/index.ts";
       }
       const replaceNode = Node.createImportStatement(
-        [
-          Node.createImportDeclaration(
-            Node.createIdentifierExpression("JSON", node.range, false),
-            null,
-            node.range
-          )
-        ],
-        Node.createStringLiteralExpression(jsonPath, node.range),  // Ensure POSIX-style path for 'assembly'
-        node.range
+        [Node.createImportDeclaration(Node.createIdentifierExpression("JSON", node.range, false), null, node.range)],
+        Node.createStringLiteralExpression(jsonPath, node.range), // Ensure POSIX-style path for 'assembly'
+        node.range,
       );
       this.topStatements.push(replaceNode);
       if (process.env["JSON_DEBUG"]) console.log("Added json-as import: " + toString(replaceNode) + "\n");
     }
   }
 
-
   getStores(data: string, simd: boolean = false): string[] {
     const out: string[] = [];
     const sizes = strToNum(data, simd);
     let offset = 0;
     for (const [size, num] of sizes) {
-      // if (size == "v128") {
-      //   // This could be put in its own file
-      //   let index = this.newStmts.simd.findIndex((v) => v.includes(num));
-      //   let name = "SIMD_" + (index == -1 ? this.newStmts.simd.length : index);
-      //   if (index && !this.newStmts.simd.includes(`const ${name} = ${num};`)) this.newStmts.simd.push(`const ${name} = ${num};`);
-      //   out.push("store<v128>(bs.offset, " + name + ", " + offset + "); // " + data.slice(offset >> 1, (offset >> 1) + 8));
-      //   offset += 16;
-      // }
+      if (size == "v128" && simd) {
+        // This could be put in its own file
+        let index = this.simdStatements.findIndex((v) => v.includes(num));
+        let name = "SIMD_" + (index == -1 ? this.simdStatements.length : index);
+        if (index && !this.simdStatements.includes(`const ${name} = ${num};`)) this.simdStatements.push(`const ${name} = ${num};`);
+        out.push("store<v128>(bs.offset, " + name + ", " + offset + "); // " + data.slice(offset >> 1, (offset >> 1) + 8));
+        offset += 16;
+      }
       if (size == "u64") {
         out.push("store<u64>(bs.offset, " + num + ", " + offset + "); // " + data.slice(offset >> 1, (offset >> 1) + 4));
         offset += 8;
@@ -569,37 +524,9 @@ class JSONTransform extends Visitor {
     return out;
   }
   isValidType(type: string, node: ClassDeclaration): boolean {
-    const validTypes = [
-      "string",
-      "u8",
-      "i8",
-      "u16",
-      "i16",
-      "u32",
-      "i32",
-      "u64",
-      "i64",
-      "f32",
-      "f64",
-      "bool",
-      "boolean",
-      "Date",
-      "JSON.Value",
-      "JSON.Obj",
-      "JSON.Raw",
-      "Value",
-      "Obj",
-      "Raw",
-      ...this.schemas.map((v) => v.name)
-    ];
+    const validTypes = ["string", "u8", "i8", "u16", "i16", "u32", "i32", "u64", "i64", "f32", "f64", "bool", "boolean", "Date", "JSON.Value", "JSON.Obj", "JSON.Raw", "Value", "Obj", "Raw", ...this.schemas.map((v) => v.name)];
 
-    const baseTypes = [
-      "Array",
-      "Map",
-      "Set",
-      "JSON.Box",
-      "Box"
-    ]
+    const baseTypes = ["Array", "Map", "Set", "JSON.Box", "Box"];
 
     if (node && node.isGeneric && node.typeParameters) validTypes.push(...node.typeParameters.map((v) => v.name.text));
     if (type.endsWith("| null")) {
@@ -613,39 +540,52 @@ class JSONTransform extends Visitor {
 }
 
 export default class Transformer extends Transform {
-  // Trigger the transform after parse.
   afterParse(parser: Parser): void {
-    // Create new transform
     const transformer = new JSONTransform();
+    const sources = parser.sources
+      .filter((source) => {
+        const p = source.internalPath;
+        if (p.startsWith("~lib/rt") || p.startsWith("~lib/performance") || p.startsWith("~lib/wasi_") || p.startsWith("~lib/shared/")) {
+          return false;
+        }
+        return !isStdlib(source);
+      })
+      .sort((a, b) => {
+        if (a.sourceKind >= 2 && b.sourceKind <= 1) {
+          return -1;
+        } else if (a.sourceKind <= 1 && b.sourceKind >= 2) {
+          return 1;
+        } else {
+          return 0;
+        }
+      })
+      .sort((a, b) => {
+        if (a.sourceKind === SourceKind.UserEntry) {
+          return 1;
+        } else {
+          return 0;
+        }
+      });
 
-    // Sort the sources so that user scripts are visited last
-    const sources = parser.sources.sort((_a, _b) => {
-      const a = _a.internalPath;
-      const b = _b.internalPath;
-      if (a[0] == "~" && b[0] !== "~") {
-        return -1;
-      } else if (a[0] !== "~" && b[0] == "~") {
-        return 1;
-      } else {
-        return 0;
-      }
-    });
-
+    transformer.baseDir = path.join(process.cwd(), this.baseDir);
+    transformer.program = this.program;
     transformer.parser = parser;
-    // Loop over every source
     for (const source of sources) {
-      // console.log("Source: " + source.normalizedPath);
       transformer.imports = [];
       transformer.currentSource = source;
-      // Ignore all lib and std. Visit everything else.
       transformer.visit(source);
 
       if (transformer.topStatements.length) {
         source.statements.unshift(...transformer.topStatements);
         transformer.topStatements = [];
       }
+      if (transformer.simdStatements.length) {
+        for (const simd of transformer.simdStatements)
+          source.statements.unshift(SimpleParser.parseTopLevelStatement(simd));
+      }
+      transformer.simdStatements = [];
     }
-    // Check that every parent and child class is hooked up correctly
+
     const schemas = transformer.schemas;
     for (const schema of schemas) {
       if (schema.parent) {
@@ -736,7 +676,6 @@ function strToNum(data: string, simd: boolean = false, offset: number = 0): stri
 
   while (n >= 8 && simd) {
     out.push(["v128", "i16x8(" + data.charCodeAt(offset + 0) + ", " + data.charCodeAt(offset + 1) + ", " + data.charCodeAt(offset + 2) + ", " + data.charCodeAt(offset + 3) + ", " + data.charCodeAt(offset + 4) + ", " + data.charCodeAt(offset + 5) + ", " + data.charCodeAt(offset + 6) + ", " + data.charCodeAt(offset + 7) + ")"]);
-
     offset += 8;
     n -= 8;
   }

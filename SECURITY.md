@@ -18,7 +18,8 @@ If you believe you have discovered a security vulnerability in this project, ple
 
 3. **Acknowledgment**: Once your report is received, we will acknowledge it within 48 hours. You will then receive an update on the progress of the investigation and a timeline for a potential fix.
 
-4. **Resolution Timeline**: 
+4. **Resolution Timeline**:
+
    - Critical vulnerabilities will be prioritized, and we aim to issue a patch within 7 business days.
    - Non-critical vulnerabilities will be evaluated and addressed in the next stable release.
    - If the vulnerability is accepted, a fix will be issued, and a security advisory will be published.

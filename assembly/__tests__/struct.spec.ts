@@ -66,6 +66,12 @@ describe("Should deserialize structs with nullable properties", () => {
   expect(JSON.stringify(JSON.parse<NullableObj>('{"bar":null}'))).toBe('{"bar":null}');
 });
 
+describe("Should deserialize structs with nullable arrays in properties", () => {
+  expect(JSON.stringify(JSON.parse<NullableArrayObj>('{"bars":[{"value":"test"}]}'))).toBe('{"bars":[{"value":"test"}]}');
+
+  expect(JSON.stringify(JSON.parse<NullableArrayObj>('{"bars":null}'))).toBe('{"bars":null}');
+});
+
 // describe("Should serialize Suite struct", () => {
 
 // });
@@ -140,6 +146,11 @@ class OmitIf {
 @json
 class NullableObj {
   bar: Bar | null = null;
+}
+
+@json
+class NullableArrayObj {
+  bars: Bar[] | null = null;
 }
 
 

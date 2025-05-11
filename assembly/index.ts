@@ -4,6 +4,7 @@ import { bs } from "../lib/as-bs";
 import { serializeString } from "./serialize/simple/string";
 import { serializeArray } from "./serialize/simple/array";
 import { serializeMap } from "./serialize/simple/map";
+import { serializeDate } from "./serialize/simple/date";
 import { deserializeBoolean } from "./deserialize/simple/bool";
 import { deserializeArray } from "./deserialize/simple/array";
 import { deserializeFloat } from "./deserialize/simple/float";
@@ -590,12 +591,12 @@ export namespace JSON {
       if (srcEnd - srcStart < 4) throw new Error("Cannot parse data as string because it was formatted incorrectly!");
       // @ts-ignore: type
       return deserializeString(srcStart, srcEnd, dst);
-    } else if (isArray<T>()) {
-      // @ts-ignore: type
-      return inline.always(deserializeArray<T>(srcStart, srcEnd, dst));
     } else if (isNullable<T>() && srcEnd - srcStart == 8 && load<u64>(srcStart) == 30399761348886638) {
       // @ts-ignore
       return null;
+    } else if (isArray<T>()) {
+      // @ts-ignore: type
+      return inline.always(deserializeArray<T>(srcStart, srcEnd, dst));
     } else {
       let type: nonnull<T> = changetype<nonnull<T>>(0);
       // @ts-ignore: Defined by transform

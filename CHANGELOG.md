@@ -1,5 +1,14 @@
 # Change Log
 
+## 2025-05-11 - 1.0.5
+
+- feat: add sanity checks for badly formatted strings
+- fix: [#120](https://github.com/JairusSW/json-as/issues/120) handle empty `JSON.Obj` serialization
+- feat: add SIMD optimization if SIMD is enabled by user
+- fix: handle structs with nullable array as property [#123](https://github.com/JairusSW/json-as/pull/123)
+- fix: struct serialization from writing to incorrect parts of memory when parsing nested structs [#125](https://github.com/JairusSW/json-as/pull/125)
+- chore: add two new contributors
+
 ## 2025-04-07 - 1.0.4
 
 - fix: paths must be resolved as POSIX in order to be valid TypeScript imports [#116](https://github.com/JairusSW/json-as/issues/116)

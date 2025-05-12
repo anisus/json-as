@@ -121,7 +121,7 @@ export namespace JSON {
       // @ts-ignore: Supplied by transform
     } else if (isDefined(data.__SERIALIZE_CUSTOM)) {
       // @ts-ignore
-      inline.always(data.__SERIALIZE_CUSTOM(changetype<usize>(data)));
+      inline.always(data.__SERIALIZE_CUSTOM());
       return bs.out<string>();
       // @ts-ignore: Supplied by transform
     } else if (isDefined(data.__SERIALIZE)) {

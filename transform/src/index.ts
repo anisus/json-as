@@ -49,18 +49,17 @@ class JSONTransform extends Visitor {
 
     if (serializers.length) {
       const serializer = serializers[0];
-      if (!serializer.signature.parameters.length) throwError("Could not find any parameters in custom serializer for " + this.schema.name + ". Serializers must have one parameter like 'serializer(self: " + this.schema.name + "): string {}'", serializer.range);
+      // if (!serializer.signature.parameters.length) throwError("Could not find any parameters in custom serializer for " + this.schema.name + ". Serializers must have one parameter like 'serializer(self: " + this.schema.name + "): string {}'", serializer.range);
       if (serializer.signature.parameters.length > 1) throwError("Found too many parameters in custom serializer for " + this.schema.name + ", but serializers can only accept one parameter of type '" + this.schema.name + "'!", serializer.signature.parameters[1].range);
-      if ((<NamedTypeNode>serializer.signature.parameters[0].type).name.identifier.text != node.name.text && (<NamedTypeNode>serializer.signature.parameters[0].type).name.identifier.text != "this") throwError("Type of parameter for custom serializer does not match! It should be 'string'either be 'this' or '" + this.schema.name + "'", serializer.signature.parameters[0].type.range);
+      if (serializer.signature.parameters.length > 0 && (<NamedTypeNode>serializer.signature.parameters[0].type).name.identifier.text != node.name.text && (<NamedTypeNode>serializer.signature.parameters[0].type).name.identifier.text != "this") throwError("Type of parameter for custom serializer does not match! It should be 'string'either be 'this' or '" + this.schema.name + "'", serializer.signature.parameters[0].type.range);
       if (!serializer.signature.returnType || !(<NamedTypeNode>serializer.signature.returnType).name.identifier.text.includes("string")) throwError("Could not find valid return type for serializer in " + this.schema.name + "!. Set the return type to type 'string' and try again", serializer.signature.returnType.range);
 
       if (!serializer.decorators.some((v) => (<IdentifierExpression>v.name).text == "inline")) {
         serializer.decorators.push(Node.createDecorator(Node.createIdentifierExpression("inline", serializer.range), null, serializer.range));
       }
       let SERIALIZER = "";
-      SERIALIZER += "  __SERIALIZE_CUSTOM(ptr: usize): void {\n";
-      SERIALIZER += "    const data = this." + serializer.name.text + "(changetype<" + this.schema.name + ">(ptr));\n";
-      SERIALIZER += '    if (isNullable(data) && changetype<usize>(data) == <usize>0) throw new Error("Could not serialize data using custom serializer!");\n';
+      SERIALIZER += "  __SERIALIZE_CUSTOM(): void {\n";
+      SERIALIZER += "    const data = this." + serializer.name.text + "(" + (serializer.signature.parameters.length ? "this" : "") + ");\n";
       SERIALIZER += "    const dataSize = data.length << 1;\n";
       SERIALIZER += "    memory.copy(bs.offset, changetype<usize>(data), dataSize);\n";
       SERIALIZER += "    bs.offset += dataSize;\n";
@@ -84,10 +83,8 @@ class JSONTransform extends Visitor {
         deserializer.decorators.push(Node.createDecorator(Node.createIdentifierExpression("inline", deserializer.range), null, deserializer.range));
       }
       let DESERIALIZER = "";
-      DESERIALIZER += "  __DESERIALIZE_CUSTOM(data: string): " + this.schema.name + " {\n";
-      DESERIALIZER += "    const d = this." + deserializer.name.text + "(data)";
-      DESERIALIZER += '    if (isNullable(d) && changetype<usize>(d) == <usize>0) throw new Error("Could not deserialize data using custom deserializer!");\n';
-      DESERIALIZER += "    return d;\n";
+      DESERIALIZER += "  __DESERIALIZE_CUSTOM(data: string): this {\n";
+      DESERIALIZER += "    return this." + deserializer.name.text + "(data);\n";
       DESERIALIZER += "  }\n";
 
       if (process.env["JSON_DEBUG"]) console.log(DESERIALIZER);

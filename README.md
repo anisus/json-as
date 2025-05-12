@@ -14,18 +14,6 @@
 
 JSON is the de-facto serialization format of modern web applications, but its serialization and deserialization remain a significant performance bottleneck, especially at scale. Traditional parsing approaches are computationally expensive, adding unnecessary overhead to both clients and servers. This library is designed to mitigate this by leveraging SIMD acceleration and highly optimized transformations.
 
-## 🔭 What's new
-
-🔹Major performance improvements and addition of SIMD
-
-🔹Near zero-growth allocation design and low overhead
-
-🔹Support for custom serializer and deserializers
-
-🔹Fixes to many, many, bugs and edge cases
-
-🔹Support for dynamic objects, arrays, arbitrary values, and raw types
-
 ## 📚 Contents
 
 - [Installation](#-installation)

@@ -552,7 +552,7 @@ export namespace JSON {
       // @ts-ignore: Supplied by transform
     } else if (isDefined(src.__SERIALIZE_CUSTOM)) {
       // @ts-ignore
-      return src.__SERIALIZE_CUSTOM(changetype<nonnull<T>>(src));
+      return src.__SERIALIZE_CUSTOM(changetype<usize>(src));
       // @ts-ignore: Supplied by transform
     } else if (isDefined(src.__SERIALIZE)) {
       // @ts-ignore

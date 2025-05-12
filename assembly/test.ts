@@ -1,6 +1,7 @@
 import { JSON } from ".";
 import { bytes } from "./util";
 
+
 @json
 class Obj {
   public a: string = "hello";
@@ -19,7 +20,6 @@ class Vec3 {
 
 @json
 class Player {
-
   @alias("first name")
   firstName!: string;
   lastName!: string;
@@ -27,6 +27,7 @@ class Player {
   // Drop in a code block, function, or expression that evaluates to a boolean
   @omitif((self: Player) => self.age < 18)
   age!: i32;
+
 
   @omitnull()
   pos!: Vec3 | null;
@@ -43,10 +44,12 @@ class Point {
     this.y = y;
   }
 
+
   @serializer
   serializer(self: Point): string {
     return `(${self.x},${self.y})`;
   }
+
 
   @deserializer
   deserializer(data: string): Point | null {

@@ -148,6 +148,7 @@ class NullableObj {
   bar: Bar | null = null;
 }
 
+
 @json
 class NullableArrayObj {
   bars: Bar[] | null = null;

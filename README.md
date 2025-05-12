@@ -77,6 +77,7 @@ class Player {
   @omitif((self: Player) => self.age < 18)
   age!: i32;
 
+
   @omitnull()
   pos!: Vec3 | null;
   isVerified!: boolean;
@@ -118,6 +119,7 @@ This decorator excludes a field from serialization entirely.
 class Example {
   name!: string;
 
+
   @omit
   SSN!: string;
 }
@@ -139,6 +141,7 @@ This decorator omits a field only if its value is null.
 class Example {
   name!: string;
 
+
   @omitnull()
   optionalField!: string | null;
 }
@@ -159,6 +162,7 @@ This decorator omits a field based on a custom predicate function.
 @json
 class Example {
   name!: string;
+
 
   @omitif((self: Example) => self.age <= 18)
   age!: number;

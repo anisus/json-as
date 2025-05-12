@@ -11,7 +11,6 @@ export function serializeObject(data: JSON.Obj): void {
     return;
   }
 
-
   bs.proposeSize(load<u32>(changetype<usize>(data), offsetof<JSON.Obj>("stackSize")) - 2);
   const keys = data.keys();
   const values = data.values();

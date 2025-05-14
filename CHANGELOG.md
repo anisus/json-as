@@ -1,5 +1,10 @@
 # Change Log
 
+## 2025-05-12 - 1.0.6
+
+- fix: support zero-param serialization and make sure types are consistent
+- fix: [#124](https://github.com/JairusSW/json-as/issues/124)
+
 ## 2025-05-11 - 1.0.5
 
 - feat: add sanity checks for badly formatted strings

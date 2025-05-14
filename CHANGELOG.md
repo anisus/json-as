@@ -1,5 +1,9 @@
 # Change Log
 
+## 2025-05-14 - 1.0.7
+
+- merge: pull request [#128](https://github.com/JairusSW/json-as/pull/128) from [loredanacirstea/nested-custom-serializer-fix](https://github.com/loredanacirstea/nested-custom-serializer-fix)
+
 ## 2025-05-12 - 1.0.6
 
 - fix: support zero-param serialization and make sure types are consistent

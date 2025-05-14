@@ -32,6 +32,14 @@ class Point {
   }
 }
 
+@json
+export class ObjectWithCustom {
+  value: Point = new Point(0, 0)
+  constructor(value: Point) {
+    this.value = value
+  }
+}
+
 describe("Should serialize using custom serializers", () => {
   expect(JSON.stringify<Point>(new Point(1, 2))).toBe("(1.0,2.0)");
 });
@@ -40,4 +48,8 @@ describe("Should deserialize using custom deserializers", () => {
   const p1 = JSON.parse<Point>("(1.0,2.0)");
   expect(p1.x.toString()).toBe("1.0");
   expect(p1.y.toString()).toBe("2.0");
+});
+
+describe("Should serialize and deserialize using nested custom serializers", () => {
+  expect(JSON.stringify<ObjectWithCustom>(new ObjectWithCustom(new Point(1, 2)))).toBe(`{"value":(1.0,2.0)}`);
 });

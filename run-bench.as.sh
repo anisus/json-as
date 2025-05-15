@@ -1,27 +1,53 @@
 #!/bin/bash
-
-mkdir -p ./build
-
+RUNTIMES=${RUNTIMES:-"stub minimal"}
+JITS=${JITS:-"ignition liftoff sparkplug turbofan llvm"}
 for file in ./assembly/__benches__/*.bench.ts; do
-  filename=$(basename -- "$file")
-  output="./build/${filename%.ts}.wasm"
+    filename=$(basename -- "$file")
+    output_wasi=
+    for runtime in $RUNTIMES; do
+        output="./build/${filename%.ts}.${runtime}.wasm"
 
-  start_time=$(date +%s%3N)
-  npx asc "$file" --transform ./transform -o "$output" --optimizeLevel 3 --shrinkLevel 0 --converge --noAssert --uncheckedBehavior always --runtime stub --enable simd --enable bulk-memory || { echo "Build failed"; exit 1; }
-  end_time=$(date +%s%3N)
+        npx asc "$file" --transform ./transform -o "${output}.1" -O3 --converge --noAssert --uncheckedBehavior always --runtime $runtime --enable simd --enable bulk-memory --exportStart start || {
+            echo "Build failed"
+            exit 1
+        }
 
-  build_time=$((end_time - start_time))
+        wasm-opt -all -O4 "${output}.1" -o "$output"
+        rm "${output}.1"
 
-  if [ "$build_time" -ge 60000 ]; then
-    formatted_time="$(bc <<< "scale=2; $build_time/60000")m"
-  elif [ "$build_time" -ge 1000 ]; then
-    formatted_time="$(bc <<< "scale=2; $build_time/1000")s"
-  else
-    formatted_time="${build_time}ms"
-  fi
+        npx asc "$file" --transform ./transform -o "${output}.2" -O3 --converge --noAssert --uncheckedBehavior always --runtime $runtime --enable simd --enable bulk-memory --config ./node_modules/@assemblyscript/wasi-shim/asconfig.json || {
+            echo "Build failed"
+            exit 1
+        }
 
-  echo -e "$filename (built in $formatted_time)\n"
-  wasmer "$output" --llvm || { echo "Benchmarked failed."; exit 1; }
+        wasm-opt -all -O4 "${output}.2" -o "${output%.wasm}.wasi.wasm"
+        rm "${output}.2"
+
+        for jit in $JITS; do
+            echo -e "$filename (asc/$runtime/$jit)\n"
+
+            arg="${filename%.ts}.${runtime}.wasm"
+            if [[ "$jit" == "ignition" ]]; then
+                v8 --no-opt --module ./bench/runners/assemblyscript.js -- $arg
+            fi
+
+            if [[ "$jit" == "liftoff" ]]; then
+                v8 --liftoff-only --no-opt --module ./bench/runners/assemblyscript.js -- $arg
+            fi
+
+            if [[ "$jit" == "sparkplug" ]]; then
+                v8 --sparkplug --always-sparkplug --no-opt --module ./bench/runners/assemblyscript.js -- $arg
+            fi
+
+            if [[ "$jit" == "turbofan" ]]; then
+                v8 --no-liftoff --no-wasm-tier-up --module ./bench/runners/assemblyscript.js -- $arg
+            fi
+
+            if [[ "$jit" == "llvm" ]]; then
+                wasmer run "${output%.wasm}.wasi.wasm" --llvm --enable-simd --enable-bulk-memory --enable-relaxed-simd --enable-pass-params-opt
+            fi
+        done
+    done
 done
 
-echo "Finished benchmarks."
+echo "Finished benchmarks"

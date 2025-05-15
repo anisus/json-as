@@ -1,5 +1,5 @@
 import { JSON } from "..";
-import { bench } from "../custom/bench";
+import { bench } from "./lib/bench";
 
 
 @json

@@ -1,5 +1,5 @@
 import { JSON } from "..";
-import { bench } from "../custom/bench";
+import { bench } from "./lib/bench";
 
 
 @json
@@ -34,7 +34,7 @@ bench(
   () => {
     JSON.stringify(v1);
   },
-  8_000_00,
+  6_000_00,
 );
 
 bench(
@@ -42,5 +42,5 @@ bench(
   () => {
     JSON.parse<MediumJSON>(v2);
   },
-  8_000_00,
+  6_000_00,
 );

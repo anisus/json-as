@@ -15,7 +15,6 @@ import { deserializeInteger } from "./deserialize/simple/integer";
 import { deserializeString } from "./deserialize/simple/string";
 import { serializeArbitrary } from "./serialize/simple/arbitrary";
 
-import { Sink } from "./custom/sink";
 import { NULL_WORD, QUOTE } from "./custom/chars";
 import { dtoa_buffered, itoa_buffered } from "util/number";
 import { serializeBool } from "./serialize/simple/bool";
@@ -31,6 +30,7 @@ import { serializeRaw } from "./serialize/simple/raw";
 import { deserializeRaw } from "./deserialize/simple/raw";
 import { isSpace } from "util/string";
 import { deserializeString_SIMD } from "./deserialize/simd/string";
+import { serializeString_SIMD } from "./serialize/simd/string";
 
 /**
  * Offset of the 'storage' property in the JSON.Value class.
@@ -116,7 +116,11 @@ export namespace JSON {
       //   bs.setBuffer(oldBuf);
       //   return changetype<string>(newBuf);
       // }
-      serializeString(changetype<string>(data));
+      if (ASC_FEATURE_SIMD) {
+        serializeString_SIMD(data as string);
+      } else {
+        serializeString(data as string);
+      }
       return bs.out<string>();
       // @ts-ignore: Supplied by transform
     } else if (isDefined(data.__SERIALIZE_CUSTOM)) {
@@ -404,18 +408,16 @@ export namespace JSON {
         case JSON.Types.Array: {
           const arr = this.get<JSON.Value[]>();
           if (!arr.length) return "[]";
-          const out = Sink.fromStringLiteral("[");
+          let out = "["
           const end = arr.length - 1;
           for (let i = 0; i < end; i++) {
             const element = unchecked(arr[i]);
-            out.write(element.toString());
-            out.write(",");
+            out += element.toString() + ",";
           }
 
           const element = unchecked(arr[end]);
-          out.write(element.toString());
+          out += element.toString() + "]";
 
-          out.write("]");
           return out.toString();
         }
         case JSON.Types.Object: {
@@ -438,7 +440,7 @@ export namespace JSON {
     // @ts-ignore: type
     private storage: Map<string, JSON.Value> = new Map<string, JSON.Value>();
 
-    constructor() {}
+    constructor() { }
 
     // @ts-ignore: decorator
     @inline get size(): i32 {

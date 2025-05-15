@@ -116,11 +116,11 @@ export namespace JSON {
       //   bs.setBuffer(oldBuf);
       //   return changetype<string>(newBuf);
       // }
-      if (ASC_FEATURE_SIMD) {
-        serializeString_SIMD(data as string);
-      } else {
+      // if (ASC_FEATURE_SIMD) {
+      //   serializeString_SIMD(data as string);
+      // } else {
         serializeString(data as string);
-      }
+      // }
       return bs.out<string>();
       // @ts-ignore: Supplied by transform
     } else if (isDefined(data.__SERIALIZE_CUSTOM)) {

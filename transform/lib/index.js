@@ -316,9 +316,7 @@ class JSONTransform extends Visitor {
             for (let i = 0; i < memberGroup.length; i++) {
                 const member = memberGroup[i];
                 const memberName = member.alias || member.name;
-                const dst = this.schemas.find(v => v.name == member.type)
-                    ? "load<usize>(ptr + offsetof<this>(\"" + member.name + "\"))"
-                    : "0";
+                const dst = this.schemas.find((v) => v.name == member.type) ? 'load<usize>(ptr + offsetof<this>("' + member.name + '"))' : "0";
                 if (memberLen == 2) {
                     DESERIALIZE += `${indent}  case ${memberName.charCodeAt(0)}: { // ${memberName}\n`;
                     DESERIALIZE += `${indent}    store<${member.type}>(ptr, JSON.__deserialize<${member.type}>(valStart, valEnd, ${dst}), offsetof<this>(${JSON.stringify(member.name)}));\n`;
@@ -391,7 +389,7 @@ class JSONTransform extends Visitor {
     generateEmptyMethods(node) {
         let SERIALIZE_EMPTY = "@inline __SERIALIZE(ptr: usize): void {\n  bs.proposeSize(4);\n  store<u32>(bs.offset, 8192123);\n  bs.offset += 4;\n}";
         let INITIALIZE_EMPTY = "@inline __INITIALIZE(): this {\n  return this;\n}";
-        let DESERIALIZE_EMPTY = "@inline __DESERIALIZE(keyStart: usize, keyEnd: usize, valStart: usize, valEnd: usize, ptr: usize): void {\n  return false;\n}";
+        let DESERIALIZE_EMPTY = "@inline __DESERIALIZE(keyStart: usize, keyEnd: usize, valStart: usize, valEnd: usize, ptr: usize): void {}";
         if (process.env["JSON_DEBUG"]) {
             console.log(SERIALIZE_EMPTY);
             console.log(INITIALIZE_EMPTY);

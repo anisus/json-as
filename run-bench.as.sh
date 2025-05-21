@@ -1,7 +1,7 @@
 #!/bin/bash
-RUNTIMES=${RUNTIMES:-"stub minimal"}
-JITS=${JITS:-"ignition liftoff sparkplug turbofan llvm"}
-for file in ./assembly/__benches__/*.bench.ts; do
+RUNTIMES=${RUNTIMES:-"minimal stub"}
+ENGINES=${ENGINES:-"liftoff ignition sparkplug turbofan llvm"}
+for file in ./assembly/__benches__/vec3.bench.ts; do
     filename=$(basename -- "$file")
     output_wasi=
     for runtime in $RUNTIMES; do
@@ -20,30 +20,30 @@ for file in ./assembly/__benches__/*.bench.ts; do
             exit 1
         }
 
-        wasm-opt -all -O4 "${output}.2" -o "${output%.wasm}.wasi.wasm"
-        rm "${output}.2"
+            wasm-opt -all -O4 "${output}.2" -o "${output%.wasm}.wasi.wasm"
+            rm "${output}.2"
 
-        for jit in $JITS; do
-            echo -e "$filename (asc/$runtime/$jit)\n"
+        for engine in $ENGINES; do
+            echo -e "$filename (asc/$runtime/$engine)\n"
 
             arg="${filename%.ts}.${runtime}.wasm"
-            if [[ "$jit" == "ignition" ]]; then
+            if [[ "$engine" == "ignition" ]]; then
                 v8 --no-opt --module ./bench/runners/assemblyscript.js -- $arg
             fi
 
-            if [[ "$jit" == "liftoff" ]]; then
+            if [[ "$engine" == "liftoff" ]]; then
                 v8 --liftoff-only --no-opt --module ./bench/runners/assemblyscript.js -- $arg
             fi
 
-            if [[ "$jit" == "sparkplug" ]]; then
+            if [[ "$engine" == "sparkplug" ]]; then
                 v8 --sparkplug --always-sparkplug --no-opt --module ./bench/runners/assemblyscript.js -- $arg
             fi
 
-            if [[ "$jit" == "turbofan" ]]; then
+            if [[ "$engine" == "turbofan" ]]; then
                 v8 --no-liftoff --no-wasm-tier-up --module ./bench/runners/assemblyscript.js -- $arg
             fi
 
-            if [[ "$jit" == "llvm" ]]; then
+            if [[ "$engine" == "llvm" ]]; then
                 wasmer run "${output%.wasm}.wasi.wasm" --llvm --enable-simd --enable-bulk-memory --enable-relaxed-simd --enable-pass-params-opt
             fi
         done

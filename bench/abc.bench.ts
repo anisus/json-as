@@ -1,4 +1,4 @@
-import { bench } from "./lib/bench";
+import { bench } from "./lib/bench.js";
 
 const v1 = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const v2 = '"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"';

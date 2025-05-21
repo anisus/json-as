@@ -1,4 +1,4 @@
-import { bench } from "./lib/bench";
+import { bench } from "./lib/bench.js";
 
 class Vec3 {
   public x!: number;

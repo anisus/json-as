@@ -149,7 +149,7 @@ export namespace JSON {
       inline.always(serializeMap(changetype<nonnull<T>>(data)));
       return bs.out<string>();
     } else if (data instanceof JSON.Raw) {
-      inline.always(serializeRaw(data));
+      serializeRaw(data);
       return bs.out<string>();
     } else if (data instanceof JSON.Value) {
       inline.always(serializeArbitrary(data));

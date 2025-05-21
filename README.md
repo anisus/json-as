@@ -371,7 +371,7 @@ These benchmarks compare this library to JavaScript's native `JSON.stringify` an
 
 | Test Case       | Size       | Serialization (ops/s) | Deserialization (ops/s) | Serialization (MB/s) | Deserialization (MB/s) |
 | --------------- | ---------- | --------------------- | ----------------------- | -------------------- | ---------------------- |
-| Vector3 Object  | 38 bytes   | 35,714,285 ops/s      | 35,435,552 ops/s        | 1,357 MB/s           | 1,348 MB/s             |
+| Vector3 Object  | 38 bytes   | 26,611,226 ops/s      | 32,160,804 ops/s        | 1,357 MB/s           | 1,348 MB/s             |
 | Alphabet String | 104 bytes  | 13,617,021 ops/s      | 18,390,804 ops/s        | 1,416 MB/s           | 1,986 MB/s             |
 | Small Object    | 88 bytes   | 24,242,424 ops/s      | 12,307,692 ops/s        | 2,133 MB/s           | 1,083 MB/s             |
 | Medium Object   | 494 bytes  | 4,060,913 ops/s       | 1,396,160 ops/s         | 2,006 MB/s           | 689.7 MB/s             |

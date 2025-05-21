@@ -1,5 +1,17 @@
+if (typeof console === 'undefined') {
+  console = {
+    log: print,
+    error: print,
+    warn: print,
+  };
+}
+
 export function bench(description: string, routine: () => void, ops: number = 1_000_000): void {
   console.log(" - Benchmarking " + description);
+  let warmup = ops/10;
+  while (--warmup) {
+    routine();
+  }
   const start = Date.now();
   let count = ops;
   while (count !== 0) {

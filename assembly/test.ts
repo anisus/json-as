@@ -36,7 +36,10 @@ class Player {
 
 
 @json
-class Point {
+class Point {}
+
+@json
+class NewPoint {
   x: f64 = 0.0;
   y: f64 = 0.0;
   constructor(x: f64, y: f64) {
@@ -46,24 +49,22 @@ class Point {
 
 
   @serializer
-  serializer(self: Point): string {
-    return `(${self.x},${self.y})`;
+  serializer(self: NewPoint): string {
+    return `x=${self.x},y=${self.y}`;
   }
 
 
   @deserializer
-  deserializer(data: string): Point | null {
+  deserializer(data: string): NewPoint {
     const dataSize = bytes(data);
-    if (dataSize <= 2) return null;
 
     const c = data.indexOf(",");
-    const x = data.slice(1, c);
-    const y = data.slice(c + 1, data.length - 1);
+    const x = data.slice(2, c);
+    const y = data.slice(c + 3);
 
-    return new Point(f64.parse(x), f64.parse(y));
+    return new NewPoint(f64.parse(x), f64.parse(y));
   }
 }
-
 
 @json
 class InnerObj<T> {
@@ -151,3 +152,27 @@ console.log("a12: " + JSON.stringify(a12));
 const a13 = JSON.stringify<JSON.Obj>(new JSON.Obj());
 
 console.log("a13: " + a13);
+
+const a14 = JSON.stringify(new Point());
+console.log("a14: " + a14);
+
+const a15 = JSON.parse<Point>(a14);
+console.log("a15: " + JSON.stringify(a15));
+
+const a16 = JSON.stringify(new NewPoint(1.0, 2.0));
+console.log("a16: " + a16);
+
+const a17 = JSON.parse<NewPoint>(a16);
+console.log("a17: " + JSON.stringify(a17));
+
+const a18 = JSON.parse<JSON.Obj[]>('[{"x":1.0,"y":2.0,"z":3.0},{"x":4.0,"y":5.0,"z":6.0},{"x":7.0,"y":8.0,"z":9.0}]');
+console.log("a18: " + JSON.stringify(a18));
+
+const a19 = JSON.stringify<JSON.Obj[]>(a18);
+console.log("a19: " + a19);
+
+const a20 = JSON.parse<JSON.Box<f64>[]>("[1.3,4.7,9.5]");
+console.log("a20: " + JSON.stringify(a20));
+
+const a21 = JSON.stringify<JSON.Box<f64>[]>(a20);
+console.log("a21: " + a21);

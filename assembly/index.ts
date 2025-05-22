@@ -623,6 +623,9 @@ export namespace JSON {
       } else if (type instanceof JSON.Value) {
         // @ts-ignore: type
         return inline.always(deserializeArbitrary(srcStart, srcEnd, 0));
+      }else if (type instanceof JSON.Obj) {
+        // @ts-ignore: type
+        return inline.always(deserializeObject(srcStart, srcEnd, 0));
       } else if (type instanceof JSON.Box) {
         // @ts-ignore: type
         return new JSON.Box(deserializeBox(srcStart, srcEnd, dst, changetype<nonnull<T>>(0).value));

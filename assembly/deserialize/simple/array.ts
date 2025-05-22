@@ -7,6 +7,8 @@ import { deserializeIntegerArray } from "./array/integer";
 import { deserializeMapArray } from "./array/map";
 import { deserializeStructArray } from "./array/struct";
 import { deserializeStringArray } from "./array/string";
+import { deserializeObjectArray } from "./array/object";
+import { deserializeBoxArray } from "./array/box";
 
 // @ts-ignore: Decorator valid here
 export function deserializeArray<T extends unknown[]>(srcStart: usize, srcEnd: usize, dst: usize): T {
@@ -29,7 +31,13 @@ export function deserializeArray<T extends unknown[]>(srcStart: usize, srcEnd: u
     if (type instanceof JSON.Value) {
       // @ts-ignore: type
       return deserializeArbitraryArray(srcStart, srcEnd, dst);
-    } else if (type instanceof Map) {
+    } else if (type instanceof JSON.Box) {
+      // @ts-ignore: type
+      return deserializeBoxArray<T>(srcStart, srcEnd, dst);
+    } else if (type instanceof JSON.Obj) {
+      // @ts-ignore: type
+      return deserializeObjectArray<T>(srcStart, srcEnd, dst);
+    }else if (type instanceof Map) {
       // @ts-ignore: type
       return deserializeMapArray<T>(srcStart, srcEnd, dst);
       // @ts-ignore: defined by transform

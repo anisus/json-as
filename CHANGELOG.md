@@ -1,5 +1,9 @@
 # Change Log
 
+## 2025-05-22 - 1.1.1
+
+- fix: remove random logs
+
 ## 2025-05-22 - 1.1.0
 
 - fix: change __DESERIALIZE<T> to __JSON_T to avoid populating local scope

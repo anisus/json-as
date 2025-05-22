@@ -1,5 +1,13 @@
 # Change Log
 
+## 2025-05-22 - 1.0.9
+
+- fix: [#132](https://github.com/JairusSW/json-as/issues/132)
+- feat: allow base classes to use their child classes if the signatures match
+- perf: rewrite struct deserialization to be significantly faster
+- fix: [#131](https://github.com/JairusSW/json-as/issues/131) Generic classes with custom deserializer crashing
+- fix: [#66](https://github.com/JairusSW/json-as/issues/66) Throw error when additional keys are in JSON
+
 ## 2025-05-21 - 1.0.8
 
 - fix: inline warnings on layer-2 serialize and deserialize functions

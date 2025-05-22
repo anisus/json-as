@@ -44,7 +44,7 @@ class JSONTransform extends Visitor {
 
     let SERIALIZE = "__SERIALIZE(ptr: usize): void {\n";
     let INITIALIZE = "@inline __INITIALIZE(): this {\n";
-    let DESERIALIZE = "__DESERIALIZE<T>(srcStart: usize, srcEnd: usize, out: T): T {\n";
+    let DESERIALIZE = "__DESERIALIZE<__JSON_T>(srcStart: usize, srcEnd: usize, out: __JSON_T): __JSON_T {\n";
     let DESERIALIZE_CUSTOM = "";
     let SERIALIZE_CUSTOM = "";
 
@@ -88,7 +88,7 @@ class JSONTransform extends Visitor {
         deserializer.decorators.push(Node.createDecorator(Node.createIdentifierExpression("inline", deserializer.range), null, deserializer.range));
       }
 
-      DESERIALIZE_CUSTOM += "  __DESERIALIZE<T>(srcStart: usize, srcEnd: usize, out: T): T {\n";
+      DESERIALIZE_CUSTOM += "  __DESERIALIZE<__JSON_T>(srcStart: usize, srcEnd: usize, out: __JSON_T): __JSON_T {\n";
       DESERIALIZE_CUSTOM += "    return inline.always(this." + deserializer.name.text + "(changetype<string>(srcStart)));\n";
       DESERIALIZE_CUSTOM += "  }\n";
     }
@@ -324,7 +324,7 @@ class JSONTransform extends Visitor {
     indent = "";
     let shouldGroup = false;
 
-    // DESERIALIZE += indent + "  console.log(\"data: \" + JSON.Util.ptrToStr(srcStart,srcEnd))\n";
+    DESERIALIZE += indent + "  console.log(\"data: \" + JSON.Util.ptrToStr(srcStart,srcEnd))\n";
     DESERIALIZE += indent + "  let keyStart: usize = 0;\n";
     if (shouldGroup || DEBUG) DESERIALIZE += indent + "  let keyEnd: usize = 0;\n";
     DESERIALIZE += indent + "  let isKey = false;\n";
@@ -431,6 +431,7 @@ class JSONTransform extends Visitor {
       DESERIALIZE += "            const code = load<u16>(srcStart);\n";
       DESERIALIZE += "            if (code == 34 && load<u16>(srcStart - 2) !== 92) {\n";
       DESERIALIZE += "              srcStart += 2;\n";
+      DESERIALIZE += "          console.log(JSON.Util.ptrToStr(keyStart,keyEnd) + \" = \" + load<u16>(keyStart).toString() + \" val \" + JSON.Util.ptrToStr(lastIndex, srcStart));\n";
       generateComparisions(sortedMembers.string);
       DESERIALIZE += "          }\n"; // Close break char check
       DESERIALIZE += "          srcStart += 2;\n";
@@ -675,7 +676,7 @@ class JSONTransform extends Visitor {
   generateEmptyMethods(node: ClassDeclaration): void {
     let SERIALIZE_EMPTY = "@inline __SERIALIZE(ptr: usize): void {\n  bs.proposeSize(4);\n  store<u32>(bs.offset, 8192123);\n  bs.offset += 4;\n}";
     let INITIALIZE_EMPTY = "@inline __INITIALIZE(): this {\n  return this;\n}";
-    let DESERIALIZE_EMPTY = "@inline __DESERIALIZE(srcStart: usize, srcEnd: usize): this {\n  return this;\n}";
+    let DESERIALIZE_EMPTY = "@inline __DESERIALIZE<__JSON_T>(srcStart: usize, srcEnd: usize, out: __JSON_T): __JSON_T {\n  return this;\n}";
 
     if (DEBUG) {
       console.log(SERIALIZE_EMPTY);

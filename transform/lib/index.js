@@ -76,7 +76,7 @@ class JSONTransform extends Visitor {
                 deserializer.decorators.push(Node.createDecorator(Node.createIdentifierExpression("inline", deserializer.range), null, deserializer.range));
             }
             let DESERIALIZER = "";
-            DESERIALIZER += "  __DESERIALIZE_CUSTOM(data: string): this {\n";
+            DESERIALIZER += "  __DESERIALIZE_CUSTOM(data: string): " + toString(deserializer.signature.returnType) + " {\n";
             DESERIALIZER += "    return this." + deserializer.name.text + "(data);\n";
             DESERIALIZER += "  }\n";
             if (process.env["JSON_DEBUG"])

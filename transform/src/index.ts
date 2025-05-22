@@ -1,4 +1,4 @@
-import { ClassDeclaration, FieldDeclaration, IdentifierExpression, Parser, Source, NodeKind, CommonFlags, ImportStatement, Node, Tokenizer, SourceKind, NamedTypeNode, Range, FEATURE_SIMD, FunctionExpression, MethodDeclaration, Statement, Program } from "assemblyscript/dist/assemblyscript.js";
+import { ClassDeclaration, FieldDeclaration, IdentifierExpression, Parser, Source, NodeKind, CommonFlags, ImportStatement, Node, Tokenizer, SourceKind, NamedTypeNode, Range, FEATURE_SIMD, FunctionExpression, MethodDeclaration, Statement, Program, Feature } from "assemblyscript/dist/assemblyscript.js";
 import { Transform } from "assemblyscript/dist/transform.js";
 import { Visitor } from "./visitor.js";
 import { isStdlib, SimpleParser, toString } from "./util.js";
@@ -6,7 +6,6 @@ import * as path from "path";
 import { fileURLToPath } from "url";
 import { Property, PropertyFlags, Schema } from "./types.js";
 import { getClasses, getImportedClass } from "./linker.js";
-import { Feature } from "types:assemblyscript/src/common";
 
 let indent = "  ";
 
@@ -83,7 +82,7 @@ class JSONTransform extends Visitor {
         deserializer.decorators.push(Node.createDecorator(Node.createIdentifierExpression("inline", deserializer.range), null, deserializer.range));
       }
       let DESERIALIZER = "";
-      DESERIALIZER += "  __DESERIALIZE_CUSTOM(data: string): this {\n";
+      DESERIALIZER += "  __DESERIALIZE_CUSTOM(data: string): " + toString(deserializer.signature.returnType) +" {\n";
       DESERIALIZER += "    return this." + deserializer.name.text + "(data);\n";
       DESERIALIZER += "  }\n";
 

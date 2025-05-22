@@ -119,7 +119,7 @@ export namespace JSON {
       // if (ASC_FEATURE_SIMD) {
       //   serializeString_SIMD(data as string);
       // } else {
-        serializeString(data as string);
+      serializeString(data as string);
       // }
       return bs.out<string>();
       // @ts-ignore: Supplied by transform
@@ -201,7 +201,7 @@ export namespace JSON {
       let type: nonnull<T> = changetype<nonnull<T>>(0);
       // @ts-ignore: Defined by transform
       if (isDefined(type.__DESERIALIZE_CUSTOM)) {
-        const out = changetype<nonnull<T>>(0);
+        const out = changetype<nonnull<T>>(__new(offsetof<nonnull<T>>(), idof<nonnull<T>>()));
         // @ts-ignore: Defined by transform
         if (isDefined(type.__INITIALIZE)) out.__INITIALIZE();
         // @ts-ignore
@@ -623,7 +623,7 @@ export namespace JSON {
       } else if (type instanceof JSON.Value) {
         // @ts-ignore: type
         return deserializeArbitrary(srcStart, srcEnd, 0);
-      }else if (type instanceof JSON.Obj) {
+      } else if (type instanceof JSON.Obj) {
         // @ts-ignore: type
         return deserializeObject(srcStart, srcEnd, 0);
       } else if (type instanceof JSON.Box) {

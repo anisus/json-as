@@ -1,167 +1,66 @@
 import { JSON } from ".";
 import { bytes } from "./util";
-
 @json
-class Obj {
-  public a: string = "hello";
-  public b: string = "world";
-  public c: string = '"\t\f\u0000\u0001';
-}
+class GenericEnum<T> {
+  private tag: string = ""
+  private value: T | null = null
 
-
-@json
-class Vec3 {
-  x: f32 = 0.0;
-  y: f32 = 0.0;
-  z: f32 = 0.0;
-}
-
-
-@json
-class Player {
-  @alias("first name")
-  firstName!: string;
-  lastName!: string;
-  lastActive!: i32[];
-  // Drop in a code block, function, or expression that evaluates to a boolean
-  @omitif((self: Player) => self.age < 18)
-  age!: i32;
-
-
-  @omitnull()
-  pos!: Vec3 | null;
-  isVerified!: boolean;
-}
-
-
-@json
-class Point {}
-
-@json
-class NewPoint {
-  x: f64 = 0.0;
-  y: f64 = 0.0;
-  constructor(x: f64, y: f64) {
-    this.x = x;
-    this.y = y;
+  constructor() {
+    this.tag = ""
+    this.value = null
   }
 
+  static create<T>(tag: string, value: T): GenericEnum<T> {
+    const item = new GenericEnum<T>()
+    item.tag = tag
+    item.value = value
+    return item
+  }
+
+  getTag(): string {
+    return this.tag
+  }
+
+  getValue(): T | null {
+    return this.value
+  }
 
   @serializer
-  serializer(self: NewPoint): string {
-    return `x=${self.x},y=${self.y}`;
+  serialize(self: GenericEnum<T>): string {
+    const tagJson = JSON.stringify(self.tag)
+    const valueJson = JSON.stringify(self.value)
+    return `{"tag":${tagJson},"value":${valueJson}}`
   }
-
 
   @deserializer
-  deserializer(data: string): NewPoint {
-    const dataSize = bytes(data);
+  deserialize(data: string): GenericEnum<T> {
+    const parsed = JSON.parse<Map<string, JSON.Raw>>(data);
+    const result = new GenericEnum<T>();
 
-    const c = data.indexOf(",");
-    const x = data.slice(2, c);
-    const y = data.slice(c + 3);
+    if (parsed.has("tag")) {
+      result.tag = JSON.parse<string>(parsed.get("tag").data);
+    }
 
-    return new NewPoint(f64.parse(x), f64.parse(y));
+    if (parsed.has("value")) {
+      result.value = JSON.parse<T>(parsed.get("value").data);
+    }
+
+    return result;
   }
 }
 
-@json
-class InnerObj<T> {
-  obj: T = instantiate<T>();
+export function test(): void {
+  const myEnum = GenericEnum.create<string>("test_tag", "test_value");
+  // Serialize it
+  const serialized = JSON.stringify<GenericEnum<string>>(myEnum);
+  console.log("=== Serialized ===");
+  console.log(serialized);
+  console.log("=== Attempting to deserialize (this will crash) ===");
+
+  // This line crashes
+  const parsed = JSON.parse<GenericEnum<string>>(serialized);
+  console.log("=== Deserialized ===");
+  console.log(JSON.stringify(parsed))
 }
 
-
-@json
-class ObjWithBracketString {
-  data: string = "";
-}
-
-const player: Player = {
-  firstName: "Jairus",
-  lastName: "Tanaka",
-  lastActive: [2, 7, 2025],
-  age: 18,
-  pos: {
-    x: 3.4,
-    y: 1.2,
-    z: 8.3,
-  },
-  isVerified: true,
-};
-
-const a1 = JSON.stringify("\u0000\u0001\u0002\u0003\u0004\u0005\u0006\u0007\u0008\u0009\u000a\u000b\u000c\u000d\u000e\u000f\u000f\u0011\u0012\u0013\u0014\u0015\u0016\u0017\u0018\u0019\u001a\u001b\u001c\u001d\u001e\u001f");
-// console.log("Bytes    " + bytes(a1).toString());
-console.log("a1: " + a1);
-
-const obj = new Obj();
-const a2 = JSON.stringify(obj);
-// console.log("Bytes    " + bytes(a2).toString());
-console.log("a2: " + a2);
-
-const a3 = JSON.stringify(player);
-// console.log("Bytes    " + bytes(a3).toString());
-console.log("a3: " + a3);
-
-const a4 = new JSON.Obj();
-
-a4.set("x", 1.5);
-a4.set("y", 5.4);
-a4.set("z", 9.8);
-a4.set("obj", obj);
-a4.set<boolean>("bool", false);
-
-console.log("a4: " + JSON.stringify(a4));
-
-const a5 = JSON.parse<JSON.Obj>('{"foo":"bar"}');
-
-console.log("a5: " + JSON.stringify(a5));
-
-const a6 = JSON.parse<JSON.Obj>('{"x":1.5,"y":5.4,"z":9.8,"obj":{"foo":"bar"}}');
-
-console.log("a6: " + JSON.stringify(a6));
-
-const a7 = JSON.parse<JSON.Value[]>('["string",true,3.14,{"x":1.0,"y":2.0,"z":3.0},[1,2,3,true]]');
-
-console.log("a7: " + JSON.stringify(a7));
-
-const a8 = JSON.stringify(["hello", JSON.stringify("world"), "working?"]);
-
-console.log("a8: " + a8);
-
-const a9 = JSON.stringify<JSON.Raw>(JSON.Raw.from('"hello world"'));
-
-console.log("a9: " + a9);
-
-const m10 = new Map<string, JSON.Raw>();
-m10.set("hello", new JSON.Raw('"world"'));
-m10.set("pos", new JSON.Raw('{"x":1.0,"y":2.0,"z":3.0}'));
-ole
-console.log("a12: " + JSON.stringify(a12));
-
-const a13 = JSON.stringify<JSON.Obj>(new JSON.Obj());
-
-console.log("a13: " + a13);
-
-const a14 = JSON.stringify(new Point());
-console.log("a14: " + a14);
-
-const a15 = JSON.parse<Point>(a14);
-console.log("a15: " + JSON.stringify(a15));
-
-const a16 = JSON.stringify(new NewPoint(1.0, 2.0));
-console.log("a16: " + a16);
-
-const a17 = JSON.parse<NewPoint>(a16);
-console.log("a17: " + JSON.stringify(a17));
-
-const a18 = JSON.parse<JSON.Obj[]>('[{"x":1.0,"y":2.0,"z":3.0},{"x":4.0,"y":5.0,"z":6.0},{"x":7.0,"y":8.0,"z":9.0}]');
-console.log("a18: " + JSON.stringify(a18));
-
-const a19 = JSON.stringify<JSON.Obj[]>(a18);
-console.log("a19: " + a19);
-
-const a20 = JSON.parse<JSON.Box<f64>[]>("[1.3,4.7,9.5]");
-console.log("a20: " + JSON.stringify(a20));
-
-const a21 = JSON.stringify<JSON.Box<f64>[]>(a20);
-console.log("a21: " + a21);
+test();

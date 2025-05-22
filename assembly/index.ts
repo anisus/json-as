@@ -197,7 +197,7 @@ export namespace JSON {
         // @ts-ignore: Defined by transform
         if (isDefined(type.__INITIALIZE)) out.__INITIALIZE();
         // @ts-ignore
-        return out.__DESERIALIZE<T>(dataPtr, dataPtr + dataSize, out);
+        return out.__DESERIALIZE(dataPtr, dataPtr + dataSize, out);
       } else if (type instanceof Map) {
         // @ts-ignore
         return inline.always(deserializeMap<nonnull<T>>(dataPtr, dataPtr + dataSize, 0));
@@ -588,8 +588,9 @@ export namespace JSON {
       let type: nonnull<T> = changetype<nonnull<T>>(0);
       // @ts-ignore: Defined by transform
       if (isDefined(type.__DESERIALIZE)) {
+        const out = changetype<nonnull<T>>(dst || __new(offsetof<nonnull<T>>(), idof<nonnull<T>>()))
         // @ts-ignore: Defined by transform
-        return type.__DESERIALIZE<T>(srcStart, srcEnd, changetype<T>(dst || __new(offsetof<nonnull<T>>(), idof<nonnull<T>>())));
+        return out.__DESERIALIZE(srcStart, srcEnd, out);
       } else if (type instanceof Map) {
         // @ts-ignore: type
         return deserializeMap<T>(srcStart, srcEnd, dst);

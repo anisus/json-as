@@ -300,7 +300,6 @@ class JSONTransform extends Visitor {
         }
         indent = "";
         let shouldGroup = false;
-        DESERIALIZE += indent + "  console.log(\"data: \" + JSON.Util.ptrToStr(srcStart,srcEnd))\n";
         DESERIALIZE += indent + "  let keyStart: usize = 0;\n";
         if (shouldGroup || DEBUG)
             DESERIALIZE += indent + "  let keyEnd: usize = 0;\n";
@@ -403,7 +402,6 @@ class JSONTransform extends Visitor {
             DESERIALIZE += "            const code = load<u16>(srcStart);\n";
             DESERIALIZE += "            if (code == 34 && load<u16>(srcStart - 2) !== 92) {\n";
             DESERIALIZE += "              srcStart += 2;\n";
-            DESERIALIZE += "          console.log(JSON.Util.ptrToStr(keyStart,keyEnd) + \" = \" + load<u16>(keyStart).toString() + \" val \" + JSON.Util.ptrToStr(lastIndex, srcStart));\n";
             generateComparisions(sortedMembers.string);
             DESERIALIZE += "          }\n";
             DESERIALIZE += "          srcStart += 2;\n";
@@ -596,11 +594,11 @@ class JSONTransform extends Visitor {
         INITIALIZE += "  return this;\n";
         INITIALIZE += "}";
         if (DEBUG) {
-            console.log(SERIALIZE_CUSTOM ? SERIALIZE_CUSTOM : SERIALIZE);
+            console.log(SERIALIZE_CUSTOM || SERIALIZE);
             console.log(INITIALIZE);
             console.log(DESERIALIZE_CUSTOM || DESERIALIZE);
         }
-        const SERIALIZE_METHOD = SimpleParser.parseClassMember(SERIALIZE_CUSTOM ? SERIALIZE_CUSTOM : SERIALIZE, node);
+        const SERIALIZE_METHOD = SimpleParser.parseClassMember(SERIALIZE_CUSTOM || SERIALIZE, node);
         const INITIALIZE_METHOD = SimpleParser.parseClassMember(INITIALIZE, node);
         const DESERIALIZE_METHOD = SimpleParser.parseClassMember(DESERIALIZE_CUSTOM || DESERIALIZE, node);
         if (!node.members.find((v) => v.name.text == "__SERIALIZE"))

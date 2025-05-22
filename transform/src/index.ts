@@ -324,7 +324,7 @@ class JSONTransform extends Visitor {
     indent = "";
     let shouldGroup = false;
 
-    DESERIALIZE += indent + "  console.log(\"data: \" + JSON.Util.ptrToStr(srcStart,srcEnd))\n";
+    // DESERIALIZE += indent + "  console.log(\"data: \" + JSON.Util.ptrToStr(srcStart,srcEnd))\n";
     DESERIALIZE += indent + "  let keyStart: usize = 0;\n";
     if (shouldGroup || DEBUG) DESERIALIZE += indent + "  let keyEnd: usize = 0;\n";
     DESERIALIZE += indent + "  let isKey = false;\n";
@@ -431,7 +431,7 @@ class JSONTransform extends Visitor {
       DESERIALIZE += "            const code = load<u16>(srcStart);\n";
       DESERIALIZE += "            if (code == 34 && load<u16>(srcStart - 2) !== 92) {\n";
       DESERIALIZE += "              srcStart += 2;\n";
-      DESERIALIZE += "          console.log(JSON.Util.ptrToStr(keyStart,keyEnd) + \" = \" + load<u16>(keyStart).toString() + \" val \" + JSON.Util.ptrToStr(lastIndex, srcStart));\n";
+      // DESERIALIZE += "          console.log(JSON.Util.ptrToStr(keyStart,keyEnd) + \" = \" + load<u16>(keyStart).toString() + \" val \" + JSON.Util.ptrToStr(lastIndex, srcStart));\n";
       generateComparisions(sortedMembers.string);
       DESERIALIZE += "          }\n"; // Close break char check
       DESERIALIZE += "          srcStart += 2;\n";
@@ -659,12 +659,12 @@ class JSONTransform extends Visitor {
     //   DESERIALIZE = "__DESERIALIZE(keyStart: usize, keyEnd: usize, valStart: usize, valEnd: usize, ptr: usize): usize {\n  if (isDefined(this.__DESERIALIZE_CUSTOM) return changetype<usize>(this." + deserializers[0].name + "(changetype<switch (<u32>keyEnd - <u32>keyStart) {\n"
     // }
     if (DEBUG) {
-      console.log(SERIALIZE_CUSTOM ? SERIALIZE_CUSTOM : SERIALIZE);
+      console.log(SERIALIZE_CUSTOM || SERIALIZE);
       console.log(INITIALIZE);
       console.log(DESERIALIZE_CUSTOM || DESERIALIZE);
     }
 
-    const SERIALIZE_METHOD = SimpleParser.parseClassMember(SERIALIZE_CUSTOM ? SERIALIZE_CUSTOM : SERIALIZE, node);
+    const SERIALIZE_METHOD = SimpleParser.parseClassMember(SERIALIZE_CUSTOM || SERIALIZE, node);
     const INITIALIZE_METHOD = SimpleParser.parseClassMember(INITIALIZE, node);
     const DESERIALIZE_METHOD = SimpleParser.parseClassMember(DESERIALIZE_CUSTOM || DESERIALIZE, node);
 

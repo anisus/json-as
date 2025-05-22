@@ -393,7 +393,7 @@ export namespace JSON {
         case JSON.Types.Array: {
           const arr = this.get<JSON.Value[]>();
           if (!arr.length) return "[]";
-          let out = "["
+          let out = "[";
           const end = arr.length - 1;
           for (let i = 0; i < end; i++) {
             const element = unchecked(arr[i]);
@@ -425,7 +425,7 @@ export namespace JSON {
     // @ts-ignore: type
     private storage: Map<string, JSON.Value> = new Map<string, JSON.Value>();
 
-    constructor() { }
+    constructor() {}
 
     // @ts-ignore: decorator
     @inline get size(): i32 {

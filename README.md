@@ -57,6 +57,7 @@ If you'd like to see the code that the transform generates, run the build step w
 ```typescript
 import { JSON } from "json-as";
 
+
 @json
 class Vec3 {
   x: f32 = 0.0;
@@ -64,8 +65,10 @@ class Vec3 {
   z: f32 = 0.0;
 }
 
+
 @json
 class Player {
+
   @alias("first name")
   firstName!: string;
   lastName!: string;
@@ -73,6 +76,7 @@ class Player {
   // Drop in a code block, function, or expression that evaluates to a boolean
   @omitif((self: Player) => self.age < 18)
   age!: i32;
+
   @omitnull()
   pos!: Vec3 | null;
   isVerified!: boolean;
@@ -109,9 +113,11 @@ This library allows selective omission of fields during serialization using the 
 This decorator excludes a field from serialization entirely.
 
 ```typescript
+
 @json
 class Example {
   name!: string;
+
   @omit
   SSN!: string;
 }
@@ -128,9 +134,11 @@ console.log(JSON.stringify(obj)); // { "name": "Jairus" }
 This decorator omits a field only if its value is null.
 
 ```typescript
+
 @json
 class Example {
   name!: string;
+
   @omitnull()
   optionalField!: string | null;
 }
@@ -147,9 +155,11 @@ console.log(JSON.stringify(obj)); // { "name": "Jairus" }
 This decorator omits a field based on a custom predicate function.
 
 ```typescript
+
 @json
 class Example {
   name!: string;
+
   @omitif((self: Example) => self.age <= 18)
   age!: number;
 }
@@ -174,6 +184,7 @@ AssemblyScript doesn't support using nullable primitive types, so instead, json-
 For example, this schema won't compile in AssemblyScript:
 
 ```typescript
+
 @json
 class Person {
   name!: string;
@@ -184,6 +195,7 @@ class Person {
 Instead, use `JSON.Box` to allow nullable primitives:
 
 ```typescript
+
 @json
 class Person {
   name: string;
@@ -246,6 +258,7 @@ More often, objects will be completely statically typed except for one or two va
 In such cases, `JSON.Value` can be used to handle fields that may hold different types at runtime.
 
 ```typescript
+
 @json
 class DynamicObj {
   id: i32 = 0;
@@ -302,6 +315,7 @@ Here's an example of creating a custom data type called `Point` which serializes
 ```typescript
 import { bytes } from "json-as/assembly/util";
 
+
 @json
 class Point {
   x: f64 = 0.0;
@@ -311,10 +325,12 @@ class Point {
     this.y = y;
   }
 
+
   @serializer
   serializer(self: Point): string {
     return `(${self.x},${self.y})`;
   }
+
 
   @deserializer
   deserializer(data: string): Point {

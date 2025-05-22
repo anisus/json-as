@@ -1,6 +1,6 @@
 export function bench(description: string, routine: () => void, ops: u64 = 1_000_000): void {
   console.log(" - Benchmarking " + description);
-  let warmup = ops/10;
+  let warmup = ops / 10;
   while (--warmup) {
     routine();
   }

@@ -32,11 +32,12 @@ class Point {
   }
 }
 
+
 @json
 class ObjectWithCustom {
-  value: Point = new Point(0, 0)
+  value: Point = new Point(0, 0);
   constructor(value: Point) {
-    this.value = value
+    this.value = value;
   }
 }
 

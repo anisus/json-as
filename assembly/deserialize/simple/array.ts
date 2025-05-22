@@ -37,7 +37,7 @@ export function deserializeArray<T extends unknown[]>(srcStart: usize, srcEnd: u
     } else if (type instanceof JSON.Obj) {
       // @ts-ignore: type
       return deserializeObjectArray<T>(srcStart, srcEnd, dst);
-    }else if (type instanceof Map) {
+    } else if (type instanceof Map) {
       // @ts-ignore: type
       return deserializeMapArray<T>(srcStart, srcEnd, dst);
       // @ts-ignore: defined by transform

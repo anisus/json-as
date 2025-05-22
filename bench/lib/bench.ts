@@ -1,4 +1,4 @@
-if (typeof console === 'undefined') {
+if (typeof console === "undefined") {
   console = {
     log: print,
     error: print,
@@ -8,7 +8,7 @@ if (typeof console === 'undefined') {
 
 export function bench(description: string, routine: () => void, ops: number = 1_000_000): void {
   console.log(" - Benchmarking " + description);
-  let warmup = ops/10;
+  let warmup = ops / 10;
   while (--warmup) {
     routine();
   }

@@ -68,7 +68,6 @@ class Vec3 {
 
 @json
 class Player {
-
   @alias("first name")
   firstName!: string;
   lastName!: string;
@@ -76,7 +75,6 @@ class Player {
   // Drop in a code block, function, or expression that evaluates to a boolean
   @omitif((self: Player) => self.age < 18)
   age!: i32;
-
   @omitnull()
   pos!: Vec3 | null;
   isVerified!: boolean;
@@ -117,7 +115,6 @@ This decorator excludes a field from serialization entirely.
 @json
 class Example {
   name!: string;
-
   @omit
   SSN!: string;
 }
@@ -138,7 +135,6 @@ This decorator omits a field only if its value is null.
 @json
 class Example {
   name!: string;
-
   @omitnull()
   optionalField!: string | null;
 }
@@ -159,7 +155,6 @@ This decorator omits a field based on a custom predicate function.
 @json
 class Example {
   name!: string;
-
   @omitif((self: Example) => self.age <= 18)
   age!: number;
 }
@@ -325,12 +320,10 @@ class Point {
     this.y = y;
   }
 
-
   @serializer
   serializer(self: Point): string {
     return `(${self.x},${self.y})`;
   }
-
 
   @deserializer
   deserializer(data: string): Point {

@@ -1,5 +1,12 @@
 # Change Log
 
+## 2025-05-21 - 1.0.8
+
+- fix: inline warnings on layer-2 serialize and deserialize functions
+- feat: fully support `JSON.Obj` and `JSON.Box` everywhere
+- fix: temp disable SIMD
+- feat: write fair benchmarks with `v8` using `jsvu`
+
 ## 2025-05-14 - 1.0.7
 
 - merge: pull request [#128](https://github.com/JairusSW/json-as/pull/128) from [loredanacirstea/nested-custom-serializer-fix](https://github.com/loredanacirstea/nested-custom-serializer-fix)

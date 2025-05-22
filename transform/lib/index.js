@@ -7,7 +7,9 @@ import { fileURLToPath } from "url";
 import { Property, PropertyFlags, Schema } from "./types.js";
 import { getClasses, getImportedClass } from "./linker.js";
 let indent = "  ";
+const DEBUG = process.env["JSON_DEBUG"];
 class JSONTransform extends Visitor {
+    static SN = new JSONTransform();
     program;
     baseDir;
     parser;
@@ -31,10 +33,10 @@ class JSONTransform extends Visitor {
         this.schemas.push(this.schema);
         let SERIALIZE = "__SERIALIZE(ptr: usize): void {\n";
         let INITIALIZE = "@inline __INITIALIZE(): this {\n";
-        let DESERIALIZE = "__DESERIALIZE(keyStart: usize, keyEnd: usize, valStart: usize, valEnd: usize, ptr: usize): void {\n  switch (<u32>keyEnd - <u32>keyStart) {\n";
+        let DESERIALIZE = "__DESERIALIZE<T>(srcStart: usize, srcEnd: usize, out: T): T {\n";
         let DESERIALIZE_CUSTOM = "";
         let SERIALIZE_CUSTOM = "";
-        if (process.env["JSON_DEBUG"])
+        if (DEBUG)
             console.log("Created schema: " + this.schema.name + " in file " + node.range.source.normalizedPath);
         const members = [...node.members.filter((v) => v.kind === 54 && v.flags !== 32 && v.flags !== 512 && v.flags !== 1024 && !v.decorators?.some((decorator) => decorator.name.text === "omit"))];
         const serializers = [...node.members.filter((v) => v.kind === 58 && v.decorators && v.decorators.some((e) => e.name.text.toLowerCase() === "serializer"))];
@@ -76,8 +78,8 @@ class JSONTransform extends Visitor {
             if (!deserializer.decorators.some((v) => v.name.text == "inline")) {
                 deserializer.decorators.push(Node.createDecorator(Node.createIdentifierExpression("inline", deserializer.range), null, deserializer.range));
             }
-            DESERIALIZE_CUSTOM += "  __DESERIALIZE_CUSTOM(data: string): " + toString(deserializer.signature.returnType) + " {\n";
-            DESERIALIZE_CUSTOM += "    return inline.always(this." + deserializer.name.text + "(data));\n";
+            DESERIALIZE_CUSTOM += "  __DESERIALIZE<T>(srcStart: usize, srcEnd: usize, out: T): T {\n";
+            DESERIALIZE_CUSTOM += "    return inline.always(this." + deserializer.name.text + "(changetype<string>(srcStart)));\n";
             DESERIALIZE_CUSTOM += "  }\n";
         }
         if (node.extendsType) {
@@ -86,7 +88,7 @@ class JSONTransform extends Visitor {
             if (!this.schema.parent) {
                 const internalSearch = getClasses(node.range.source).find((v) => v.name.text == extendsName);
                 if (internalSearch) {
-                    if (process.env["JSON_DEBUG"])
+                    if (DEBUG)
                         console.log("Found " + extendsName + " internally");
                     this.visitClassDeclaration(internalSearch);
                     this.visitClassDeclaration(node);
@@ -94,7 +96,7 @@ class JSONTransform extends Visitor {
                 }
                 const externalSearch = getImportedClass(extendsName, node.range.source, this.parser);
                 if (externalSearch) {
-                    if (process.env["JSON_DEBUG"])
+                    if (DEBUG)
                         console.log("Found " + extendsName + " externally");
                     this.visitClassDeclaration(externalSearch);
                     this.visitClassDeclaration(node);
@@ -274,86 +276,315 @@ class JSONTransform extends Visitor {
                 }
             }
         }
-        let sortedMembers = [];
-        let len = -1;
-        this.schema.members
-            .slice()
-            .sort((a, b) => (a.alias?.length || a.name.length) - (b.alias?.length || b.name.length))
-            .forEach((member) => {
-            const _nameLength = member.alias?.length || member.name.length;
-            if (_nameLength === len) {
-                sortedMembers[sortedMembers.length - 1].push(member);
-            }
-            else {
-                sortedMembers.push([member]);
-                len = _nameLength;
-            }
-        });
-        sortedMembers = sortedMembers.sort((a, b) => b.length - a.length);
-        indentInc();
-        for (const memberGroup of sortedMembers) {
-            const memberLen = (memberGroup[0].alias || memberGroup[0].name).length << 1;
-            DESERIALIZE += `${indent}case ${memberLen}: {\n`;
-            indentInc();
-            if (memberLen == 2)
-                DESERIALIZE += `${indent}switch (load<u16>(keyStart)) {\n`;
-            else if (memberLen == 4)
-                DESERIALIZE += `${indent}switch (load<u32>(keyStart)) {\n`;
-            else if (memberLen == 6)
-                DESERIALIZE += `${indent}let code = load<u64>(keyStart) & 0x0000FFFFFFFFFFFF;\n`;
-            else if (memberLen == 8)
-                DESERIALIZE += `${indent}let code = load<u64>(keyStart);\n`;
+        const sortedMembers = {
+            string: [],
+            number: [],
+            boolean: [],
+            null: [],
+            array: [],
+            object: []
+        };
+        for (const member of this.schema.members) {
+            if (member.type.endsWith(" | null"))
+                sortedMembers.null.push(member);
+            if (isString(member.type) || member.type == "JSON.Raw")
+                sortedMembers.string.push(member);
+            else if (isBoolean(member.type) || member.type.startsWith("JSON.Box<bool"))
+                sortedMembers.boolean.push(member);
+            else if (isPrimitive(member.type) || member.type.startsWith("JSON.Box<"))
+                sortedMembers.number.push(member);
+            else if (isArray(member.type))
+                sortedMembers.array.push(member);
             else
-                DESERIALIZE += toMemCDecl(memberLen, indent);
-            for (let i = 0; i < memberGroup.length; i++) {
-                const member = memberGroup[i];
-                const memberName = member.alias || member.name;
-                const dst = this.schemas.find((v) => v.name == member.type) ? 'load<usize>(ptr + offsetof<this>("' + member.name + '"))' : "0";
-                if (memberLen == 2) {
-                    DESERIALIZE += `${indent}  case ${memberName.charCodeAt(0)}: { // ${memberName}\n`;
-                    DESERIALIZE += `${indent}    store<${member.type}>(ptr, JSON.__deserialize<${member.type}>(valStart, valEnd, ${dst}), offsetof<this>(${JSON.stringify(member.name)}));\n`;
-                    DESERIALIZE += `${indent}    return;\n`;
-                    DESERIALIZE += `${indent}  }\n`;
-                }
-                else if (memberLen == 4) {
-                    DESERIALIZE += `${indent}  case ${toU32(memberName)}: { // ${memberName}\n`;
-                    DESERIALIZE += `${indent}    store<${member.type}>(ptr, JSON.__deserialize<${member.type}>(valStart, valEnd, ${dst}), offsetof<this>(${JSON.stringify(member.name)}));\n`;
-                    DESERIALIZE += `${indent}    return;\n`;
-                    DESERIALIZE += `${indent}  }\n`;
-                }
-                else if (memberLen == 6) {
-                    DESERIALIZE += i == 0 ? indent : "";
-                    DESERIALIZE += `if (code == ${toU48(memberName)}) { // ${memberName}\n`;
-                    DESERIALIZE += `${indent}  store<${member.type}>(ptr, JSON.__deserialize<${member.type}>(valStart, valEnd, ${dst}), offsetof<this>(${JSON.stringify(member.name)}));\n`;
-                    DESERIALIZE += `${indent}  return;\n`;
-                    DESERIALIZE += `${indent}}${i < memberGroup.length - 1 ? " else " : "\n"}`;
-                }
-                else if (memberLen == 8) {
-                    DESERIALIZE += i == 0 ? indent : "";
-                    DESERIALIZE += `if (code == ${toU64(memberName)}) { // ${memberName}\n`;
-                    DESERIALIZE += `${indent}  store<${member.type}>(ptr, JSON.__deserialize<${member.type}>(valStart, valEnd, ${dst}), offsetof<this>(${JSON.stringify(member.name)}));\n`;
-                    DESERIALIZE += `${indent}  return;\n`;
-                    DESERIALIZE += `${indent}}${i < memberGroup.length - 1 ? " else " : "\n"}`;
+                sortedMembers.object.push(member);
+        }
+        indent = "";
+        let shouldGroup = false;
+        DESERIALIZE += indent + "  let keyStart: usize = 0;\n";
+        if (shouldGroup || DEBUG)
+            DESERIALIZE += indent + "  let keyEnd: usize = 0;\n";
+        DESERIALIZE += indent + "  let isKey = false;\n";
+        if (sortedMembers.object.length || sortedMembers.array.length)
+            DESERIALIZE += indent + "  let depth: i32 = 0;\n";
+        DESERIALIZE += indent + "  let lastIndex: usize = 0;\n\n";
+        DESERIALIZE += indent + "  while (srcStart < srcEnd && JSON.Util.isSpace(load<u16>(srcStart))) srcStart += 2;\n";
+        DESERIALIZE += indent + "  while (srcEnd > srcStart && JSON.Util.isSpace(load<u16>(srcEnd - 2))) srcEnd -= 2;\n";
+        DESERIALIZE += indent + "  if (srcStart - srcEnd == 0) throw new Error(\"Input string had zero length or was all whitespace\");\n";
+        DESERIALIZE += indent + "  if (load<u16>(srcStart) != 123) throw new Error(\"Expected '{' at start of object at position \" + (srcEnd - srcStart).toString());\n";
+        DESERIALIZE += indent + "  if (load<u16>(srcEnd - 2) != 125) throw new Error(\"Expected '}' at end of object at position \" + (srcEnd - srcStart).toString());\n";
+        DESERIALIZE += indent + "  srcStart += 2;\n\n";
+        DESERIALIZE += indent + "  while (srcStart < srcEnd) {\n";
+        DESERIALIZE += indent + "    let code = load<u16>(srcStart);\n";
+        DESERIALIZE += indent + "    while (JSON.Util.isSpace(code)) code = load<u16>(srcStart += 2);\n";
+        DESERIALIZE += indent + "    if (keyStart == 0) {\n";
+        DESERIALIZE += indent + "      if (code == 34 && load<u16>(srcStart - 2) !== 92) {\n";
+        DESERIALIZE += indent + "        if (isKey) {\n";
+        DESERIALIZE += indent + "          keyStart = lastIndex;\n";
+        if (shouldGroup || DEBUG)
+            DESERIALIZE += indent + "          keyEnd = srcStart;\n";
+        DESERIALIZE += indent + "          while (JSON.Util.isSpace((code = load<u16>((srcStart += 2))))) {}\n";
+        DESERIALIZE += indent + "          if (code !== 58) throw new Error(\"Expected ':' after key at position \" + (srcEnd - srcStart).toString());\n";
+        DESERIALIZE += indent + "          isKey = false;\n";
+        DESERIALIZE += indent + "        } else {\n";
+        DESERIALIZE += indent + "          isKey = true;\n";
+        DESERIALIZE += indent + "          lastIndex = srcStart + 2;\n";
+        DESERIALIZE += indent + "        }\n";
+        DESERIALIZE += indent + "      }\n";
+        DESERIALIZE += indent + "      srcStart += 2;\n";
+        DESERIALIZE += indent + "    } else {\n";
+        const groupMembers = (members) => {
+            let sorted = [];
+            let len = -1;
+            members
+                .slice()
+                .sort((a, b) => (a.alias?.length || a.name.length) - (b.alias?.length || b.name.length))
+                .forEach((member) => {
+                const _nameLength = member.alias?.length || member.name.length;
+                if (_nameLength === len) {
+                    sorted[sorted.length - 1].push(member);
                 }
                 else {
-                    DESERIALIZE += i == 0 ? indent : "";
-                    DESERIALIZE += `if (${toMemCCheck(memberName)}) { // ${memberName}\n`;
-                    DESERIALIZE += `${indent}  store<${member.type}>(ptr, JSON.__deserialize<${member.type}>(valStart, valEnd, ${dst}), offsetof<this>(${JSON.stringify(member.name)}));\n`;
-                    DESERIALIZE += `${indent}  return;\n`;
-                    DESERIALIZE += `${indent}}${i < memberGroup.length - 1 ? " else " : "\n"}`;
+                    sorted.push([member]);
+                    len = _nameLength;
                 }
+            });
+            sorted = sorted.sort((a, b) => b.length - a.length);
+            return sorted;
+        };
+        const generateComparisions = (members) => {
+            if (members.some(m => (m.alias || m.name).length << 1 == 2)) {
+                DESERIALIZE += "            const code16 = load<u16>(keyStart);\n";
             }
-            if (memberLen < 6) {
-                DESERIALIZE += `${indent}}\n`;
+            if (members.some(m => (m.alias || m.name).length << 1 == 4)) {
+                DESERIALIZE += "            const code32 = load<u32>(keyStart);\n";
             }
-            indentDec();
-            DESERIALIZE += `${indent}  return;\n`;
-            DESERIALIZE += `${indent}}\n`;
+            if (members.some(m => (m.alias || m.name).length << 1 == 6)) {
+                DESERIALIZE += "            const code48 = load<u64>(keyStart) & 0x0000FFFFFFFFFFFF;\n";
+            }
+            if (members.some(m => (m.alias || m.name).length << 1 == 8)) {
+                DESERIALIZE += "            const code64 = load<u64>(keyStart);\n";
+            }
+            if (members.some(m => (m.alias || m.name).length << 1 > 8)) {
+                DESERIALIZE += toMemCDecl(Math.max(...members.map(m => (m.alias || m.name).length << 1)), "            ");
+            }
+            const complex = isStruct(members[0].type) || members[0].type != "JSON.Obj" || isArray(members[0].type);
+            const firstMemberName = members[0].alias || members[0].name;
+            DESERIALIZE += indent + "            if (" + getComparision(firstMemberName) + ") { // " + firstMemberName + "\n";
+            DESERIALIZE += indent + "              store<" + members[0].type + ">(changetype<usize>(out), JSON.__deserialize<" + members[0].type + ">(lastIndex, srcStart), offsetof<this>(" + JSON.stringify(firstMemberName) + "));\n";
+            if (!complex)
+                DESERIALIZE += indent + "              srcStart += 2;\n";
+            DESERIALIZE += indent + "              keyStart = 0;\n";
+            DESERIALIZE += indent + "              break;\n";
+            DESERIALIZE += indent + "            }";
+            for (let i = 1; i < members.length; i++) {
+                const member = members[i];
+                const memberName = member.alias || member.name;
+                DESERIALIZE += indent + " else if (" + getComparision(memberName) + ") { // " + memberName + "\n";
+                DESERIALIZE += indent + "              store<" + members[0].type + ">(changetype<usize>(out), JSON.__deserialize<" + members[0].type + ">(lastIndex, srcStart), offsetof<this>(" + JSON.stringify(memberName) + "));\n";
+                if (isString(members[0].type))
+                    DESERIALIZE += indent + "              srcStart += 4;\n";
+                else if (!complex)
+                    DESERIALIZE += indent + "              srcStart += 2;\n";
+                DESERIALIZE += indent + "              keyStart = 0;\n";
+                DESERIALIZE += indent + "              break;\n";
+                DESERIALIZE += indent + "            }";
+            }
+            DESERIALIZE += " else {\n";
+            DESERIALIZE += indent + "              throw new Error(\"Unexpected key in JSON object '\" + String.fromCharCode(load<u16>(srcStart)) + \"' at position \" + (srcEnd - srcStart).toString());\n";
+            DESERIALIZE += indent + "            }\n";
+        };
+        let mbElse = "      ";
+        if (sortedMembers.string.length) {
+            DESERIALIZE += mbElse + "if (code == 34) {\n";
+            DESERIALIZE += "          lastIndex = srcStart;\n";
+            DESERIALIZE += "          srcStart += 2;\n";
+            DESERIALIZE += "          while (srcStart < srcEnd) {\n";
+            DESERIALIZE += "            const code = load<u16>(srcStart);\n";
+            DESERIALIZE += "            if (code == 34 && load<u16>(srcStart - 2) !== 92) {\n";
+            DESERIALIZE += "              srcStart += 2;\n";
+            generateComparisions(sortedMembers.string);
+            DESERIALIZE += "          }\n";
+            DESERIALIZE += "          srcStart += 2;\n";
+            DESERIALIZE += "        }\n";
+            DESERIALIZE += "      }\n";
+            mbElse = " else ";
         }
+        if (sortedMembers.number.length) {
+            DESERIALIZE += mbElse + "if (code - 48 <= 9 || code == 45) {\n";
+            DESERIALIZE += "        lastIndex = srcStart;\n";
+            DESERIALIZE += "        srcStart += 2;\n";
+            DESERIALIZE += "        while (srcStart < srcEnd) {\n";
+            DESERIALIZE += "          const code = load<u16>(srcStart);\n";
+            DESERIALIZE += "          if (code == 44 || code == 125 || JSON.Util.isSpace(code)) {\n";
+            generateComparisions(sortedMembers.number);
+            DESERIALIZE += "          }\n";
+            DESERIALIZE += "          srcStart += 2;\n";
+            DESERIALIZE += "        }\n";
+            DESERIALIZE += "      }";
+            mbElse = " else ";
+        }
+        if (sortedMembers.object.length) {
+            DESERIALIZE += mbElse + "if (code == 123) {\n";
+            DESERIALIZE += "        lastIndex = srcStart;\n";
+            DESERIALIZE += "        depth++;\n";
+            DESERIALIZE += "        srcStart += 2;\n";
+            DESERIALIZE += "        while (srcStart < srcEnd) {\n";
+            DESERIALIZE += "          const code = load<u16>(srcStart);\n";
+            DESERIALIZE += "          if (code == 34) {\n";
+            DESERIALIZE += "            srcStart += 2;\n";
+            DESERIALIZE += "            while (!(load<u16>(srcStart) == 34 && load<u16>(srcStart - 2) != 92)) srcStart += 2;\n";
+            DESERIALIZE += "          } else if (code == 125) {\n";
+            DESERIALIZE += "            if (--depth == 0) {\n";
+            DESERIALIZE += "              srcStart += 2;\n";
+            indent = "  ";
+            generateComparisions(sortedMembers.object);
+            indent = "";
+            DESERIALIZE += "            }\n";
+            DESERIALIZE += "          } else if (code == 123) depth++;\n";
+            DESERIALIZE += "          srcStart += 2;\n";
+            DESERIALIZE += "        }\n";
+            DESERIALIZE += "      }";
+            mbElse = " else ";
+        }
+        if (sortedMembers.array.length) {
+            DESERIALIZE += mbElse + "if (code == 91) {\n";
+            DESERIALIZE += "        lastIndex = srcStart;\n";
+            DESERIALIZE += "        depth++;\n";
+            DESERIALIZE += "        srcStart += 2;\n";
+            DESERIALIZE += "        while (srcStart < srcEnd) {\n";
+            DESERIALIZE += "          const code = load<u16>(srcStart);\n";
+            DESERIALIZE += "          if (code == 34) {\n";
+            DESERIALIZE += "            srcStart += 2;\n";
+            DESERIALIZE += "            while (!(load<u16>(srcStart) == 34 && load<u16>(srcStart - 2) != 92)) srcStart += 2;\n";
+            DESERIALIZE += "          } else if (code == 93) {\n";
+            DESERIALIZE += "            if (--depth == 0) {\n";
+            DESERIALIZE += "              srcStart += 2;\n";
+            indent = "  ";
+            generateComparisions(sortedMembers.array);
+            indent = "";
+            DESERIALIZE += "            }\n";
+            DESERIALIZE += "          } else if (code == 91) depth++;\n";
+            DESERIALIZE += "          srcStart += 2;\n";
+            DESERIALIZE += "        }\n";
+            DESERIALIZE += "      }";
+            mbElse = " else ";
+        }
+        if (sortedMembers.boolean.length) {
+            DESERIALIZE += mbElse + "if (code == 116) {\n";
+            DESERIALIZE += "        if (load<u64>(srcStart) == 28429475166421108) {\n";
+            DESERIALIZE += "          srcStart += 8;\n";
+            if (sortedMembers.boolean.some(m => (m.alias || m.name).length << 1 == 2)) {
+                DESERIALIZE += "            const code16 = load<u16>(keyStart);\n";
+            }
+            if (sortedMembers.boolean.some(m => (m.alias || m.name).length << 1 == 4)) {
+                DESERIALIZE += "            const code32 = load<u32>(keyStart);\n";
+            }
+            if (sortedMembers.boolean.some(m => (m.alias || m.name).length << 1 == 6)) {
+                DESERIALIZE += "            const code48 = load<u64>(keyStart) & 0x0000FFFFFFFFFFFF;\n";
+            }
+            if (sortedMembers.boolean.some(m => (m.alias || m.name).length << 1 == 8)) {
+                DESERIALIZE += "            const code64 = load<u64>(keyStart);\n";
+            }
+            if (sortedMembers.boolean.some(m => (m.alias || m.name).length << 1 > 8)) {
+                DESERIALIZE += toMemCDecl(Math.max(...sortedMembers.boolean.map(m => (m.alias || m.name).length << 1)), "            ");
+            }
+            const firstMemberName = sortedMembers.boolean[0].alias || sortedMembers.boolean[0].name;
+            DESERIALIZE += indent + "            if (" + getComparision(firstMemberName) + ") { // " + firstMemberName + "\n";
+            DESERIALIZE += indent + "              store<" + sortedMembers.boolean[0].type + ">(changetype<usize>(out), true, offsetof<this>(" + JSON.stringify(sortedMembers.boolean[0].name) + "));\n";
+            DESERIALIZE += indent + "              srcStart += 2;\n";
+            DESERIALIZE += indent + "              keyStart = 0;\n";
+            DESERIALIZE += indent + "              break;\n";
+            DESERIALIZE += indent + "            }";
+            for (let i = 1; i < sortedMembers.boolean.length; i++) {
+                const member = sortedMembers.boolean[i];
+                const memberName = member.alias || member.name;
+                DESERIALIZE += indent + " else if (" + getComparision(memberName) + ") { // " + memberName + "\n";
+                DESERIALIZE += indent + "            store<" + sortedMembers.boolean[0].type + ">(changetype<usize>(out), true, offsetof<this>(" + JSON.stringify(sortedMembers.boolean[0].name) + "));\n";
+                DESERIALIZE += indent + "            srcStart += 2;\n";
+                DESERIALIZE += indent + "            keyStart = 0;\n";
+                DESERIALIZE += indent + "            break;\n";
+                DESERIALIZE += indent + "          }";
+            }
+            DESERIALIZE += " else {\n";
+            DESERIALIZE += indent + "            throw new Error(\"Unexpected key in JSON object '\" + String.fromCharCode(load<u16>(srcStart)) + \"' at position \" + (srcEnd - srcStart).toString());\n";
+            DESERIALIZE += indent + "          }\n";
+            DESERIALIZE += "        }";
+            mbElse = " else ";
+            DESERIALIZE += " else if (load<u64>(srcStart, 2) == 28429466576093281) {\n";
+            DESERIALIZE += "          srcStart += 10;\n";
+            DESERIALIZE += indent + "          if (" + getComparision(firstMemberName) + ") { // " + firstMemberName + "\n";
+            DESERIALIZE += indent + "            store<" + sortedMembers.boolean[0].type + ">(changetype<usize>(out), false, offsetof<this>(" + JSON.stringify(sortedMembers.boolean[0].name) + "));\n";
+            DESERIALIZE += indent + "            srcStart += 2;\n";
+            DESERIALIZE += indent + "            keyStart = 0;\n";
+            DESERIALIZE += indent + "            break;\n";
+            DESERIALIZE += indent + "          }";
+            for (let i = 1; i < sortedMembers.boolean.length; i++) {
+                const member = sortedMembers.boolean[i];
+                const memberName = member.alias || member.name;
+                DESERIALIZE += indent + " else if (" + getComparision(memberName) + ") { // " + memberName + "\n";
+                DESERIALIZE += indent + "            store<" + sortedMembers.boolean[0].type + ">(changetype<usize>(out), false, offsetof<this>(" + JSON.stringify(sortedMembers.boolean[0].name) + "));\n";
+                DESERIALIZE += indent + "            srcStart += 2;\n";
+                DESERIALIZE += indent + "            keyStart = 0;\n";
+                DESERIALIZE += indent + "            break;\n";
+                DESERIALIZE += indent + "          }";
+            }
+            DESERIALIZE += " else {\n";
+            DESERIALIZE += indent + "            throw new Error(\"Unexpected key in JSON object '\" + String.fromCharCode(load<u16>(srcStart)) + \"' at position \" + (srcEnd - srcStart).toString());\n";
+            DESERIALIZE += indent + "          }\n";
+            DESERIALIZE += "        }\n";
+            DESERIALIZE += "      }";
+        }
+        if (sortedMembers.null.length) {
+            DESERIALIZE += mbElse + "if (code == 110) {\n";
+            DESERIALIZE += "        if (load<u64>(srcStart) == 30399761348886638) {\n";
+            DESERIALIZE += "          srcStart += 8;\n";
+            if (sortedMembers.null.some(m => (m.alias || m.name).length << 1 == 2)) {
+                DESERIALIZE += "            const code16 = load<u16>(keyStart);\n";
+            }
+            if (sortedMembers.null.some(m => (m.alias || m.name).length << 1 == 4)) {
+                DESERIALIZE += "            const code32 = load<u32>(keyStart);\n";
+            }
+            if (sortedMembers.null.some(m => (m.alias || m.name).length << 1 == 6)) {
+                DESERIALIZE += "            const code48 = load<u64>(keyStart) & 0x0000FFFFFFFFFFFF;\n";
+            }
+            if (sortedMembers.null.some(m => (m.alias || m.name).length << 1 == 8)) {
+                DESERIALIZE += "            const code64 = load<u64>(keyStart);\n";
+            }
+            if (sortedMembers.null.some(m => (m.alias || m.name).length << 1 > 8)) {
+                DESERIALIZE += toMemCDecl(Math.max(...sortedMembers.null.map(m => (m.alias || m.name).length << 1)), "            ");
+            }
+            const firstMemberName = sortedMembers.null[0].alias || sortedMembers.null[0].name;
+            DESERIALIZE += indent + "          if (" + getComparision(firstMemberName) + ") { // " + firstMemberName + "\n";
+            DESERIALIZE += indent + "            store<" + sortedMembers.null[0].type + ">(changetype<usize>(out), null, offsetof<this>(" + JSON.stringify(sortedMembers.null[0].name) + "));\n";
+            DESERIALIZE += indent + "            srcStart += 2;\n";
+            DESERIALIZE += indent + "            keyStart = 0;\n";
+            DESERIALIZE += indent + "            break;\n";
+            DESERIALIZE += indent + "          }";
+            for (let i = 1; i < sortedMembers.null.length; i++) {
+                const member = sortedMembers.null[i];
+                const memberName = member.alias || member.name;
+                DESERIALIZE += indent + " else if (" + getComparision(memberName) + ") { // " + memberName + "\n";
+                DESERIALIZE += indent + "            store<" + sortedMembers.null[0].type + ">(changetype<usize>(out), null, offsetof<this>(" + JSON.stringify(sortedMembers.null[0].name) + "));\n";
+                DESERIALIZE += indent + "            srcStart += 2;\n";
+                DESERIALIZE += indent + "            keyStart = 0;\n";
+                DESERIALIZE += indent + "            break;\n";
+                DESERIALIZE += indent + "          }";
+            }
+            DESERIALIZE += " else {\n";
+            DESERIALIZE += indent + "            throw new Error(\"Unexpected key in JSON object '\" + String.fromCharCode(load<u16>(srcStart)) + \"' at position \" + (srcEnd - srcStart).toString());\n";
+            DESERIALIZE += indent + "          }\n";
+            DESERIALIZE += "        }";
+            DESERIALIZE += "\n      }";
+            mbElse = " else ";
+        }
+        DESERIALIZE += " else {\n";
+        DESERIALIZE += "   srcStart += 2;\n";
+        DESERIALIZE += "}\n";
+        DESERIALIZE += "\n    }\n";
         indentDec();
-        DESERIALIZE += `${indent}}\n`;
+        DESERIALIZE += `  }\n`;
         indentDec();
-        DESERIALIZE += `${indent}}\n`;
+        DESERIALIZE += `  return out;\n}\n`;
         indent = "  ";
         this.schema.byteSize += 2;
         SERIALIZE += indent + "store<u16>(bs.offset, 125, 0); // }\n";
@@ -362,14 +593,14 @@ class JSONTransform extends Visitor {
         SERIALIZE = SERIALIZE.slice(0, 32) + indent + "bs.proposeSize(" + this.schema.byteSize + ");\n" + SERIALIZE.slice(32);
         INITIALIZE += "  return this;\n";
         INITIALIZE += "}";
-        if (process.env["JSON_DEBUG"]) {
+        if (DEBUG) {
             console.log(SERIALIZE_CUSTOM ? SERIALIZE_CUSTOM : SERIALIZE);
             console.log(INITIALIZE);
-            console.log(DESERIALIZE);
+            console.log(DESERIALIZE_CUSTOM || DESERIALIZE);
         }
         const SERIALIZE_METHOD = SimpleParser.parseClassMember(SERIALIZE_CUSTOM ? SERIALIZE_CUSTOM : SERIALIZE, node);
         const INITIALIZE_METHOD = SimpleParser.parseClassMember(INITIALIZE, node);
-        const DESERIALIZE_METHOD = SimpleParser.parseClassMember(DESERIALIZE, node);
+        const DESERIALIZE_METHOD = SimpleParser.parseClassMember(DESERIALIZE_CUSTOM || DESERIALIZE, node);
         if (!node.members.find((v) => v.name.text == "__SERIALIZE"))
             node.members.push(SERIALIZE_METHOD);
         if (!node.members.find((v) => v.name.text == "__INITIALIZE"))
@@ -381,8 +612,8 @@ class JSONTransform extends Visitor {
     generateEmptyMethods(node) {
         let SERIALIZE_EMPTY = "@inline __SERIALIZE(ptr: usize): void {\n  bs.proposeSize(4);\n  store<u32>(bs.offset, 8192123);\n  bs.offset += 4;\n}";
         let INITIALIZE_EMPTY = "@inline __INITIALIZE(): this {\n  return this;\n}";
-        let DESERIALIZE_EMPTY = "@inline __DESERIALIZE(keyStart: usize, keyEnd: usize, valStart: usize, valEnd: usize, ptr: usize): void {}";
-        if (process.env["JSON_DEBUG"]) {
+        let DESERIALIZE_EMPTY = "@inline __DESERIALIZE(srcStart: usize, srcEnd: usize): this {\n  return this;\n}";
+        if (DEBUG) {
             console.log(SERIALIZE_EMPTY);
             console.log(INITIALIZE_EMPTY);
             console.log(DESERIALIZE_EMPTY);
@@ -419,7 +650,7 @@ class JSONTransform extends Visitor {
             }
             const replaceNode = Node.createImportStatement([Node.createImportDeclaration(Node.createIdentifierExpression("bs", node.range, false), null, node.range)], Node.createStringLiteralExpression(bsPath, node.range), node.range);
             this.topStatements.push(replaceNode);
-            if (process.env["JSON_DEBUG"])
+            if (DEBUG)
                 console.log("Added as-bs import: " + toString(replaceNode) + "\n");
         }
         if (!jsonImport) {
@@ -428,7 +659,7 @@ class JSONTransform extends Visitor {
             }
             const replaceNode = Node.createImportStatement([Node.createImportDeclaration(Node.createIdentifierExpression("JSON", node.range, false), null, node.range)], Node.createStringLiteralExpression(jsonPath, node.range), node.range);
             this.topStatements.push(replaceNode);
-            if (process.env["JSON_DEBUG"])
+            if (DEBUG)
                 console.log("Added json-as import: " + toString(replaceNode) + "\n");
         }
     }
@@ -480,7 +711,7 @@ class JSONTransform extends Visitor {
 }
 export default class Transformer extends Transform {
     afterParse(parser) {
-        const transformer = new JSONTransform();
+        const transformer = JSONTransform.SN;
         const sources = parser.sources
             .filter((source) => {
             const p = source.internalPath;
@@ -567,17 +798,17 @@ function toMemCDecl(n, indent) {
     let offset = 0;
     let index = 0;
     while (n >= 8) {
-        out += `${indent}const code${index++} = load<u64>(keyStart, ${offset});\n`;
+        out += `${indent}const codeS${index += 8} = load<u64>(keyStart, ${offset});\n`;
         offset += 8;
         n -= 8;
     }
     while (n >= 4) {
-        out += `${indent}const code${index++} = load<u32>(keyStart, ${offset});\n`;
+        out += `${indent}const codeS${index += 4} = load<u32>(keyStart, ${offset});\n`;
         offset += 4;
         n -= 4;
     }
     if (n == 1)
-        out += `${indent}const code${index++} = load<u16>(keyStart, ${offset});\n`;
+        out += `${indent}const codeS${index += 1} = load<u16>(keyStart, ${offset});\n`;
     return out;
 }
 function toMemCCheck(data) {
@@ -586,17 +817,17 @@ function toMemCCheck(data) {
     let offset = 0;
     let index = 0;
     while (n >= 8) {
-        out += ` && code${index++} == ${toU64(data, offset >> 1)}`;
+        out += ` && codeS${index += 8} == ${toU64(data, offset >> 1)}`;
         offset += 8;
         n -= 8;
     }
     while (n >= 4) {
-        out += ` && code${index++} == ${toU32(data, offset >> 1)}`;
+        out += ` && codeS${index += 4} == ${toU32(data, offset >> 1)}`;
         offset += 4;
         n -= 4;
     }
     if (n == 1)
-        out += ` && code${index++} == ${toU16(data, offset >> 1)}`;
+        out += ` && codeS${index += 1} == ${toU16(data, offset >> 1)}`;
     return out.slice(4);
 }
 function strToNum(data, simd = false, offset = 0) {
@@ -624,10 +855,6 @@ function strToNum(data, simd = false, offset = 0) {
         out.push(["u16", value.toString()]);
     }
     return out;
-}
-function isPrimitive(type) {
-    const primitiveTypes = ["u8", "u16", "u32", "u64", "i8", "i16", "i32", "i64", "f32", "f64", "bool", "boolean"];
-    return primitiveTypes.some((v) => type.startsWith(v));
 }
 function throwError(message, range) {
     const err = new Error();
@@ -661,5 +888,47 @@ function sizeof(type) {
         return 10;
     else
         return 0;
+}
+function isPrimitive(type) {
+    const primitiveTypes = ["u8", "u16", "u32", "u64", "i8", "i16", "i32", "i64", "f32", "f64", "bool", "boolean"];
+    return primitiveTypes.some((v) => type.startsWith(v));
+}
+function isBoolean(type) {
+    return type == "bool" || type == "boolean";
+}
+function isStruct(type) {
+    type = stripNull(type);
+    return JSONTransform.SN.schemas.some((v) => v.name == type) || JSONTransform.SN.schema.name == type;
+}
+function isString(type) {
+    return stripNull(type) == "string" || stripNull(type) == "String";
+}
+function isArray(type) {
+    return type.startsWith("Array<");
+}
+function stripNull(type) {
+    if (type.endsWith(" | null")) {
+        return type.slice(0, type.length - 7);
+    }
+    return type;
+}
+function getComparision(data) {
+    switch (data.length << 1) {
+        case 2: {
+            return "code16 == " + data.charCodeAt(0);
+        }
+        case 4: {
+            return "code32 == " + toU32(data);
+        }
+        case 6: {
+            return "code48 == " + toU48(data);
+        }
+        case 8: {
+            return "code64 == " + toU64(data);
+        }
+        default: {
+            return toMemCCheck(data);
+        }
+    }
 }
 //# sourceMappingURL=index.js.map

@@ -1,5 +1,6 @@
 export function describe(description: string, routine: () => void): void {
   routine();
+  // console.log("  " + description + " OK");
 }
 
 export function expect(left: string): Expectation {

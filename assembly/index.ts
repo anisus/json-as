@@ -28,10 +28,6 @@ import { serializeObject } from "./serialize/simple/object";
 import { deserializeObject } from "./deserialize/simple/object";
 import { serializeRaw } from "./serialize/simple/raw";
 import { deserializeRaw } from "./deserialize/simple/raw";
-import { isSpace } from "util/string";
-import { deserializeString_SIMD } from "./deserialize/simd/string";
-import { serializeString_SIMD } from "./serialize/simd/string";
-import { idofD } from "./util/idofd";
 
 /**
  * Offset of the 'storage' property in the JSON.Value class.
@@ -197,11 +193,11 @@ export namespace JSON {
       let type: nonnull<T> = changetype<nonnull<T>>(0);
       // @ts-ignore: Defined by transform
       if (isDefined(type.__DESERIALIZE)) {
-        const out = __new(offsetof<nonnull<T>>(), idof<nonnull<T>>());
+        const out = changetype<nonnull<T>>(__new(offsetof<nonnull<T>>(), idof<nonnull<T>>()));
         // @ts-ignore: Defined by transform
-        if (isDefined(type.__INITIALIZE)) changetype<nonnull<T>>(out).__INITIALIZE();
+        if (isDefined(type.__INITIALIZE)) out.__INITIALIZE();
         // @ts-ignore
-        return inline.always(deserializeStruct<nonnull<T>>(dataPtr, dataPtr + dataSize, out));
+        return out.__DESERIALIZE<T>(dataPtr, dataPtr + dataSize, out);
       } else if (type instanceof Map) {
         // @ts-ignore
         return inline.always(deserializeMap<nonnull<T>>(dataPtr, dataPtr + dataSize, 0));
@@ -591,15 +587,9 @@ export namespace JSON {
     } else {
       let type: nonnull<T> = changetype<nonnull<T>>(0);
       // @ts-ignore: Defined by transform
-      if (isDefined(type.__DESERIALIZE_CUSTOM)) {
-        const out = __new(offsetof<nonnull<T>>(), idof<nonnull<T>>());
+      if (isDefined(type.__DESERIALIZE)) {
         // @ts-ignore: Defined by transform
-        if (isDefined(type.__INITIALIZE)) changetype<nonnull<T>>(out).__INITIALIZE();
-        // @ts-ignore
-        return changetype<nonnull<T>>(out).__DESERIALIZE_CUSTOM(ptrToStr(srcStart, srcEnd));
-        // @ts-ignore: Defined by transform
-      } else if (isDefined(type.__DESERIALIZE)) {
-        return deserializeStruct<T>(srcStart, srcEnd, dst);
+        return type.__DESERIALIZE<T>(srcStart, srcEnd, changetype<T>(dst || __new(offsetof<nonnull<T>>(), idof<nonnull<T>>())));
       } else if (type instanceof Map) {
         // @ts-ignore: type
         return deserializeMap<T>(srcStart, srcEnd, dst);
@@ -621,6 +611,19 @@ export namespace JSON {
       }
     }
     throw new Error(`Could not deserialize data '${ptrToStr(srcStart, srcEnd).slice(0, 100)}' to type. Make sure to add the correct decorators to classes.`);
+  }
+  namespace Util {
+    // @ts-ignore: decorator
+    @inline export function isSpace(code: u16): boolean {
+      return code == 0x20 || code - 9 <= 4;
+    }
+    // @ts-ignore: decorator
+    @inline export function ptrToStr(start: usize, end: usize): string {
+      const size = end - start;
+      const out = __new(size, idof<string>());
+      memory.copy(out, start, size);
+      return changetype<string>(out);
+    }
   }
 }
 

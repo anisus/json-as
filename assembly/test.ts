@@ -1,4 +1,5 @@
 import { JSON } from ".";
+import { describe } from "./__tests__/lib";
 import { bytes } from "./util";
 
 
@@ -167,59 +168,31 @@ import { bytes } from "./util";
 // const a21 = JSON.stringify<JSON.Box<f64>[]>(a20);
 // console.log("a21: " + a21);
 
-/**
- * A request message object that can be sent to the chat model.
- */
 @json
-export abstract class RequestMessage {
-  /**
-   * Creates a new request message object.
-   *
-   * @param role The role of the author of this message.
-   */
-  constructor(role: string) {
-    this._role = role;
-  }
-
-
-  @alias("role")
-  protected _role: string;
-
-  /**
-   * The role of the author of this message.
-   */
-  get role(): string {
-    return this._role;
+class Foo {
+  a: i32;
+  constructor(a: i32) {
+    this.a = a;
   }
 }
 
 @json
-class RawMessage extends RequestMessage {
-  constructor(data: string) {
-    const obj = JSON.parse<JSON.Obj>(data);
-    if (!obj.has("role")) {
-      throw new Error("Missing role field in message JSON.");
-    }
-
-    const role = obj.get("role")!.get<string>();
-    super(role);
-
-    this._data = data;
+class Bar extends Foo {
+  b: i32;
+  constructor(a: i32, b: i32) {
+    super(a);
+    this.b = b;
   }
-
-  private _data: string;
-
-
   @serializer
-  serialize(self: RawMessage): string {
-    return self._data;
-  }
-
-
-  @deserializer
-  deserialize(data: string): RawMessage {
-    return new RawMessage(data);
+  serialize(self: Bar): string {
+    return "custom";
   }
 }
 
-console.log("RawMessage: " + JSON.stringify(new RawMessage('{"role":"user","content":"Hello, how are you?"}')));
+describe("should use custom serializer for subclasses", () => {
+  const bar = new Bar();
+  bar.a = 1;
+  bar.b = 2;
+  const data = JSON.stringify(bar);
+  expect(data).toBe('"bar"');
+});

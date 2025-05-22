@@ -33,7 +33,7 @@ class Point {
 }
 
 @json
-export class ObjectWithCustom {
+class ObjectWithCustom {
   value: Point = new Point(0, 0)
   constructor(value: Point) {
     this.value = value

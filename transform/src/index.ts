@@ -37,6 +37,13 @@ class JSONTransform extends Visitor {
     this.schema.name = node.name.text;
 
     this.schemas.push(this.schema);
+
+    let SERIALIZE = "__SERIALIZE(ptr: usize): void {\n";
+    let INITIALIZE = "@inline __INITIALIZE(): this {\n";
+    let DESERIALIZE = "__DESERIALIZE(keyStart: usize, keyEnd: usize, valStart: usize, valEnd: usize, ptr: usize): void {\n  switch (<u32>keyEnd - <u32>keyStart) {\n";
+    let DESERIALIZE_CUSTOM = "";
+    let SERIALIZE_CUSTOM = "";
+
     if (process.env["JSON_DEBUG"]) console.log("Created schema: " + this.schema.name + " in file " + node.range.source.normalizedPath);
 
     const members: FieldDeclaration[] = [...(node.members.filter((v) => v.kind === NodeKind.FieldDeclaration && v.flags !== CommonFlags.Static && v.flags !== CommonFlags.Private && v.flags !== CommonFlags.Protected && !v.decorators?.some((decorator) => (<IdentifierExpression>decorator.name).text === "omit")) as FieldDeclaration[])];
@@ -47,6 +54,7 @@ class JSONTransform extends Visitor {
     if (deserializers.length > 1) throwError("Multiple deserializers detected for class " + node.name.text + " but schemas can only have one deserializer!", deserializers[1].range);
 
     if (serializers.length) {
+      this.schema.custom = true;
       const serializer = serializers[0];
       // if (!serializer.signature.parameters.length) throwError("Could not find any parameters in custom serializer for " + this.schema.name + ". Serializers must have one parameter like 'serializer(self: " + this.schema.name + "): string {}'", serializer.range);
       if (serializer.signature.parameters.length > 1) throwError("Found too many parameters in custom serializer for " + this.schema.name + ", but serializers can only accept one parameter of type '" + this.schema.name + "'!", serializer.signature.parameters[1].range);
@@ -56,22 +64,16 @@ class JSONTransform extends Visitor {
       if (!serializer.decorators.some((v) => (<IdentifierExpression>v.name).text == "inline")) {
         serializer.decorators.push(Node.createDecorator(Node.createIdentifierExpression("inline", serializer.range), null, serializer.range));
       }
-      let SERIALIZER = "";
-      SERIALIZER += "  __SERIALIZE_CUSTOM(): void {\n";
-      SERIALIZER += "    const data = this." + serializer.name.text + "(" + (serializer.signature.parameters.length ? "this" : "") + ");\n";
-      SERIALIZER += "    const dataSize = data.length << 1;\n";
-      SERIALIZER += "    memory.copy(bs.offset, changetype<usize>(data), dataSize);\n";
-      SERIALIZER += "    bs.offset += dataSize;\n";
-      SERIALIZER += "  }\n";
-
-      if (process.env["JSON_DEBUG"]) console.log(SERIALIZER);
-
-      const SERIALIZER_METHOD = SimpleParser.parseClassMember(SERIALIZER, node);
-
-      if (!node.members.find((v) => v.name.text == "__SERIALIZE_CUSTOM")) node.members.push(SERIALIZER_METHOD);
+      SERIALIZE_CUSTOM += "  __SERIALIZE(ptr: usize): void {\n";
+      SERIALIZE_CUSTOM += "    const data = this." + serializer.name.text + "(" + (serializer.signature.parameters.length ? "this" : "") + ");\n";
+      SERIALIZE_CUSTOM += "    const dataSize = data.length << 1;\n";
+      SERIALIZE_CUSTOM += "    memory.copy(bs.offset, changetype<usize>(data), dataSize);\n";
+      SERIALIZE_CUSTOM += "    bs.offset += dataSize;\n";
+      SERIALIZE_CUSTOM += "  }\n";
     }
 
     if (deserializers.length) {
+      this.schema.custom = true;
       const deserializer = deserializers[0];
       if (!deserializer.signature.parameters.length) throwError("Could not find any parameters in custom deserializer for " + this.schema.name + ". Deserializers must have one parameter like 'deserializer(data: string): " + this.schema.name + " {}'", deserializer.range);
       if (deserializer.signature.parameters.length > 1) throwError("Found too many parameters in custom deserializer for " + this.schema.name + ", but deserializers can only accept one parameter of type 'string'!", deserializer.signature.parameters[1].range);
@@ -81,16 +83,10 @@ class JSONTransform extends Visitor {
       if (!deserializer.decorators.some((v) => (<IdentifierExpression>v.name).text == "inline")) {
         deserializer.decorators.push(Node.createDecorator(Node.createIdentifierExpression("inline", deserializer.range), null, deserializer.range));
       }
-      let DESERIALIZER = "";
-      DESERIALIZER += "  __DESERIALIZE_CUSTOM(data: string): " + toString(deserializer.signature.returnType) +" {\n";
-      DESERIALIZER += "    return this." + deserializer.name.text + "(data);\n";
-      DESERIALIZER += "  }\n";
 
-      if (process.env["JSON_DEBUG"]) console.log(DESERIALIZER);
-
-      const DESERIALIZER_METHOD = SimpleParser.parseClassMember(DESERIALIZER, node);
-
-      if (!node.members.find((v) => v.name.text == "__DESERIALIZE_CUSTOM")) node.members.push(DESERIALIZER_METHOD);
+      DESERIALIZE_CUSTOM += "  __DESERIALIZE_CUSTOM(data: string): " + toString(deserializer.signature.returnType) + " {\n";
+      DESERIALIZE_CUSTOM += "    return inline.always(this." + deserializer.name.text + "(data));\n";
+      DESERIALIZE_CUSTOM += "  }\n";
     }
 
     if (node.extendsType) {
@@ -185,10 +181,6 @@ class JSONTransform extends Visitor {
     }
 
     if (!this.schema.static) this.schema.members = sortMembers(this.schema.members);
-
-    let SERIALIZE = "__SERIALIZE(ptr: usize): void {\n";
-    let INITIALIZE = "@inline __INITIALIZE(): this {\n";
-    let DESERIALIZE = "__DESERIALIZE(keyStart: usize, keyEnd: usize, valStart: usize, valEnd: usize, ptr: usize): void {\n  switch (<u32>keyEnd - <u32>keyStart) {\n";
 
     indent = "  ";
 
@@ -387,15 +379,18 @@ class JSONTransform extends Visitor {
     INITIALIZE += "  return this;\n";
     INITIALIZE += "}";
 
+    // if (DESERIALIZE_CUSTOM) {
+    //   DESERIALIZE = "__DESERIALIZE(keyStart: usize, keyEnd: usize, valStart: usize, valEnd: usize, ptr: usize): usize {\n  if (isDefined(this.__DESERIALIZE_CUSTOM) return changetype<usize>(this." + deserializers[0].name + "(changetype<switch (<u32>keyEnd - <u32>keyStart) {\n"
+    // }
     if (process.env["JSON_DEBUG"]) {
-      console.log(SERIALIZE);
+      console.log(SERIALIZE_CUSTOM ? SERIALIZE_CUSTOM : SERIALIZE);
       console.log(INITIALIZE);
-      console.log(DESERIALIZE);
+      console.log( DESERIALIZE);
     }
 
-    const SERIALIZE_METHOD = SimpleParser.parseClassMember(SERIALIZE, node);
+    const SERIALIZE_METHOD = SimpleParser.parseClassMember(SERIALIZE_CUSTOM ? SERIALIZE_CUSTOM : SERIALIZE, node);
     const INITIALIZE_METHOD = SimpleParser.parseClassMember(INITIALIZE, node);
-    const DESERIALIZE_METHOD = SimpleParser.parseClassMember(DESERIALIZE, node);
+    const DESERIALIZE_METHOD = SimpleParser.parseClassMember( DESERIALIZE, node);
 
     if (!node.members.find((v) => v.name.text == "__SERIALIZE")) node.members.push(SERIALIZE_METHOD);
     if (!node.members.find((v) => v.name.text == "__INITIALIZE")) node.members.push(INITIALIZE_METHOD);

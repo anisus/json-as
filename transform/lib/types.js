@@ -22,5 +22,6 @@ export class Schema {
     needsLink = null;
     byteSize = 0;
     deps = [];
+    custom = false;
 }
 //# sourceMappingURL=types.js.map

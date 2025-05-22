@@ -25,4 +25,5 @@ export class Schema {
   public needsLink: string | null = null;
   public byteSize: number = 0;
   public deps: Schema[] = [];
+  public custom: boolean = false;
 }

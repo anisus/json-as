@@ -31,6 +31,7 @@ import { deserializeRaw } from "./deserialize/simple/raw";
 import { isSpace } from "util/string";
 import { deserializeString_SIMD } from "./deserialize/simd/string";
 import { serializeString_SIMD } from "./serialize/simd/string";
+import { idofD } from "./util/idofd";
 
 /**
  * Offset of the 'storage' property in the JSON.Value class.
@@ -123,11 +124,6 @@ export namespace JSON {
       // }
       return bs.out<string>();
       // @ts-ignore: Supplied by transform
-    } else if (isDefined(data.__SERIALIZE_CUSTOM)) {
-      // @ts-ignore
-      inline.always(data.__SERIALIZE_CUSTOM());
-      return bs.out<string>();
-      // @ts-ignore: Supplied by transform
     } else if (isDefined(data.__SERIALIZE)) {
       // @ts-ignore
       inline.always(data.__SERIALIZE(changetype<usize>(data)));
@@ -200,14 +196,7 @@ export namespace JSON {
     } else {
       let type: nonnull<T> = changetype<nonnull<T>>(0);
       // @ts-ignore: Defined by transform
-      if (isDefined(type.__DESERIALIZE_CUSTOM)) {
-        const out = changetype<nonnull<T>>(__new(offsetof<nonnull<T>>(), idof<nonnull<T>>()));
-        // @ts-ignore: Defined by transform
-        if (isDefined(type.__INITIALIZE)) out.__INITIALIZE();
-        // @ts-ignore
-        return out.__DESERIALIZE_CUSTOM(ptrToStr(dataPtr, dataPtr + dataSize));
-        // @ts-ignore: Defined by transform
-      } else if (isDefined(type.__DESERIALIZE)) {
+      if (isDefined(type.__DESERIALIZE)) {
         const out = __new(offsetof<nonnull<T>>(), idof<nonnull<T>>());
         // @ts-ignore: Defined by transform
         if (isDefined(type.__INITIALIZE)) changetype<nonnull<T>>(out).__INITIALIZE();

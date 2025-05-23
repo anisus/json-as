@@ -8,6 +8,7 @@ import { Property, PropertyFlags, Schema } from "./types.js";
 import { getClasses, getImportedClass } from "./linker.js";
 let indent = "  ";
 const DEBUG = process.env["JSON_DEBUG"];
+const STRICT = process.env["JSON_STRICT"];
 class JSONTransform extends Visitor {
     static SN = new JSONTransform();
     program;
@@ -370,8 +371,10 @@ class JSONTransform extends Visitor {
             const complex = isStruct(members[0].type) || members[0].type != "JSON.Obj" || isArray(members[0].type);
             const firstMemberName = members[0].alias || members[0].name;
             DESERIALIZE += indent + "            if (" + getComparision(firstMemberName) + ") { // " + firstMemberName + "\n";
-            DESERIALIZE += indent + "              store<" + members[0].type + ">(changetype<usize>(out), JSON.__deserialize<" + members[0].type + ">(lastIndex, srcStart), offsetof<this>(" + JSON.stringify(firstMemberName) + "));\n";
-            if (!complex)
+            DESERIALIZE += indent + "              store<" + members[0].type + ">(changetype<usize>(out), JSON.__deserialize<" + members[0].type + ">(lastIndex, srcStart" + (isString(members[0].type) ? " + 2" : "") + "), offsetof<this>(" + JSON.stringify(firstMemberName) + "));\n";
+            if (isString(members[0].type))
+                DESERIALIZE += indent + "              srcStart += 4;\n";
+            else if (!complex)
                 DESERIALIZE += indent + "              srcStart += 2;\n";
             DESERIALIZE += indent + "              keyStart = 0;\n";
             DESERIALIZE += indent + "              break;\n";
@@ -380,7 +383,7 @@ class JSONTransform extends Visitor {
                 const member = members[i];
                 const memberName = member.alias || member.name;
                 DESERIALIZE += indent + " else if (" + getComparision(memberName) + ") { // " + memberName + "\n";
-                DESERIALIZE += indent + "              store<" + members[0].type + ">(changetype<usize>(out), JSON.__deserialize<" + members[0].type + ">(lastIndex, srcStart), offsetof<this>(" + JSON.stringify(memberName) + "));\n";
+                DESERIALIZE += indent + "              store<" + members[0].type + ">(changetype<usize>(out), JSON.__deserialize<" + members[0].type + ">(lastIndex, srcStart" + (isString(members[0].type) ? " + 2" : "") + "), offsetof<this>(" + JSON.stringify(memberName) + "));\n";
                 if (isString(members[0].type))
                     DESERIALIZE += indent + "              srcStart += 4;\n";
                 else if (!complex)
@@ -389,9 +392,11 @@ class JSONTransform extends Visitor {
                 DESERIALIZE += indent + "              break;\n";
                 DESERIALIZE += indent + "            }";
             }
-            DESERIALIZE += " else {\n";
-            DESERIALIZE += indent + '              throw new Error("Unexpected key in JSON object \'" + String.fromCharCode(load<u16>(srcStart)) + "\' at position " + (srcEnd - srcStart).toString());\n';
-            DESERIALIZE += indent + "            }\n";
+            if (STRICT) {
+                DESERIALIZE += " else {\n";
+                DESERIALIZE += indent + '              throw new Error("Unexpected key in JSON object \'" + String.fromCharCode(load<u16>(srcStart)) + "\' at position " + (srcEnd - srcStart).toString());\n';
+                DESERIALIZE += indent + "            }\n";
+            }
         };
         let mbElse = "      ";
         if (sortedMembers.string.length) {
@@ -401,7 +406,6 @@ class JSONTransform extends Visitor {
             DESERIALIZE += "          while (srcStart < srcEnd) {\n";
             DESERIALIZE += "            const code = load<u16>(srcStart);\n";
             DESERIALIZE += "            if (code == 34 && load<u16>(srcStart - 2) !== 92) {\n";
-            DESERIALIZE += "              srcStart += 2;\n";
             generateComparisions(sortedMembers.string);
             DESERIALIZE += "          }\n";
             DESERIALIZE += "          srcStart += 2;\n";
@@ -505,9 +509,11 @@ class JSONTransform extends Visitor {
                 DESERIALIZE += indent + "            break;\n";
                 DESERIALIZE += indent + "          }";
             }
-            DESERIALIZE += " else {\n";
-            DESERIALIZE += indent + '            throw new Error("Unexpected key in JSON object \'" + String.fromCharCode(load<u16>(srcStart)) + "\' at position " + (srcEnd - srcStart).toString());\n';
-            DESERIALIZE += indent + "          }\n";
+            if (STRICT) {
+                DESERIALIZE += " else {\n";
+                DESERIALIZE += indent + '            throw new Error("Unexpected key in JSON object \'" + String.fromCharCode(load<u16>(srcStart)) + "\' at position " + (srcEnd - srcStart).toString());\n';
+                DESERIALIZE += indent + "          }\n";
+            }
             DESERIALIZE += "        }";
             mbElse = " else ";
             DESERIALIZE += " else if (load<u64>(srcStart, 2) == 28429466576093281) {\n";
@@ -528,9 +534,11 @@ class JSONTransform extends Visitor {
                 DESERIALIZE += indent + "            break;\n";
                 DESERIALIZE += indent + "          }";
             }
-            DESERIALIZE += " else {\n";
-            DESERIALIZE += indent + '            throw new Error("Unexpected key in JSON object \'" + String.fromCharCode(load<u16>(srcStart)) + "\' at position " + (srcEnd - srcStart).toString());\n';
-            DESERIALIZE += indent + "          }\n";
+            if (STRICT) {
+                DESERIALIZE += " else {\n";
+                DESERIALIZE += indent + '            throw new Error("Unexpected key in JSON object \'" + String.fromCharCode(load<u16>(srcStart)) + "\' at position " + (srcEnd - srcStart).toString());\n';
+                DESERIALIZE += indent + "          }\n";
+            }
             DESERIALIZE += "        }\n";
             DESERIALIZE += "      }";
         }
@@ -570,9 +578,11 @@ class JSONTransform extends Visitor {
                 DESERIALIZE += indent + "            break;\n";
                 DESERIALIZE += indent + "          }";
             }
-            DESERIALIZE += " else {\n";
-            DESERIALIZE += indent + '            throw new Error("Unexpected key in JSON object \'" + String.fromCharCode(load<u16>(srcStart)) + "\' at position " + (srcEnd - srcStart).toString());\n';
-            DESERIALIZE += indent + "          }\n";
+            if (STRICT) {
+                DESERIALIZE += " else {\n";
+                DESERIALIZE += indent + '            throw new Error("Unexpected key in JSON object \'" + String.fromCharCode(load<u16>(srcStart)) + "\' at position " + (srcEnd - srcStart).toString());\n';
+                DESERIALIZE += indent + "          }\n";
+            }
             DESERIALIZE += "        }";
             DESERIALIZE += "\n      }";
             mbElse = " else ";

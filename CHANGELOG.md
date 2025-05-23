@@ -6,7 +6,7 @@
 
 ## 2025-05-22 - 1.1.0
 
-- fix: change __DESERIALIZE<T> to __JSON_T to avoid populating local scope
+- fix: change _DESERIALIZE<T> to _JSON_T to avoid populating local scope
 
 ## 2025-05-22 - 1.0.9
 

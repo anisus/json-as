@@ -2,26 +2,32 @@ import { OBJECT, TOTAL_OVERHEAD } from "rt/common";
 import { JSON } from "..";
 import { describe, expect } from "./lib";
 
+
 @json
 class Foo {
   a: i32 = 0;
 }
 
+
 @json
 class Bar extends Foo {
   b: i32 = 0;
+
 
   @serializer
   serialize(self: Bar): string {
     return `"bar"`;
   }
 
+
   @deserializer
   deserialize(data: string): Bar {
-    return data == "\"bar\"" ? {
-      a: 1,
-      b: 2,
-    } : new Bar();
+    return data == '"bar"'
+      ? {
+          a: 1,
+          b: 2,
+        }
+      : new Bar();
   }
 }
 

@@ -17,7 +17,7 @@ class Expectation {
     if (this.left != right) {
       console.log("  (expected) -> " + right);
       console.log("  (received) -> " + this.left);
-      process.exit(1);
+      unreachable();
     }
   }
 }

@@ -396,7 +396,7 @@ class JSONTransform extends Visitor {
       }
 
       DESERIALIZE += "    }\n";
-      DESERIALIZE += "  break;\n";
+      if (!(members[0].node.type.isNullable || isBoolean(members[0].type)))DESERIALIZE += "  break;\n";
     }
 
     const generateComparisions = (members: Property[]) => {

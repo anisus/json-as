@@ -15,6 +15,7 @@
     "url": "https://github.com/JairusSW/json-as/issues"
   },
   "scripts": {
+    "ci": "act",
     "test": "bash ./run-tests.sh",
     "bench:as": "bash ./run-bench.as.sh",
     "bench:js": "bash ./run-bench.js.sh",

@@ -8,7 +8,7 @@ import { Property, PropertyFlags, Schema } from "./types.js";
 import { getClasses, getImportedClass } from "./linker.js";
 let indent = "  ";
 const DEBUG = process.env["JSON_DEBUG"];
-const STRICT = process.env["JSON_STRICT"];
+const STRICT = process.env["JSON_STRICT"] && process.env["JSON_STRICT"] == "false";
 class JSONTransform extends Visitor {
     static SN = new JSONTransform();
     program;

@@ -1,5 +1,9 @@
 # Change Log
 
+## 2025-05-23 - 1.1.6
+
+- fix: null and boolean fields would miscalculate offsets when deserializing
+
 ## 2025-05-23 - 1.1.5
 
 - fix: index.js didn't point to correct file, thus creating a compiler crash

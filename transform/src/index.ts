@@ -7,13 +7,10 @@ import { fileURLToPath } from "url";
 import { Property, PropertyFlags, Schema } from "./types.js";
 import { getClasses, getImportedClass } from "./linker.js";
 
-import * as ss from "safe-stable-stringify";
-
-
 let indent = "  ";
 
 const DEBUG = process.env["JSON_DEBUG"];
-const STRICT = process.env["JSON_STRICT"] && process.env["JSON_STRICT"] == "false";
+const STRICT = !(process.env["JSON_STRICT"] && process.env["JSON_STRICT"] == "false");
 
 class JSONTransform extends Visitor {
   static SN: JSONTransform = new JSONTransform();

@@ -612,7 +612,7 @@ export namespace JSON {
     }
     throw new Error(`Could not deserialize data '${ptrToStr(srcStart, srcEnd).slice(0, 100)}' to type. Make sure to add the correct decorators to classes.`);
   }
-  namespace Util {
+  export namespace Util {
     // @ts-ignore: decorator
     @inline export function isSpace(code: u16): boolean {
       return code == 0x20 || code - 9 <= 4;

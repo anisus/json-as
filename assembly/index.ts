@@ -8,7 +8,6 @@ import { serializeDate } from "./serialize/simple/date";
 import { deserializeBoolean } from "./deserialize/simple/bool";
 import { deserializeArray } from "./deserialize/simple/array";
 import { deserializeFloat } from "./deserialize/simple/float";
-import { deserializeStruct } from "./deserialize/simple/struct";
 import { deserializeMap } from "./deserialize/simple/map";
 import { deserializeDate } from "./deserialize/simple/date";
 import { deserializeInteger } from "./deserialize/simple/integer";

@@ -1,7 +1,7 @@
 #!/bin/bash
 RUNTIMES=${RUNTIMES:-"minimal stub"}
 ENGINES=${ENGINES:-"liftoff ignition sparkplug turbofan llvm"}
-for file in ./assembly/__benches__/vec3.bench.ts; do
+for file in ./assembly/__benches__/*.bench.ts; do
     filename=$(basename -- "$file")
     output_wasi=
     for runtime in $RUNTIMES; do
@@ -20,8 +20,8 @@ for file in ./assembly/__benches__/vec3.bench.ts; do
             exit 1
         }
 
-            wasm-opt -all -O4 "${output}.2" -o "${output%.wasm}.wasi.wasm"
-            rm "${output}.2"
+        wasm-opt -all -O4 "${output}.2" -o "${output%.wasm}.wasi.wasm"
+        rm "${output}.2"
 
         for engine in $ENGINES; do
             echo -e "$filename (asc/$runtime/$engine)\n"

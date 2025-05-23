@@ -1,4 +1,5 @@
 import { JSON } from "..";
+import { expect } from "../__tests__/lib";
 import { bench } from "./lib/bench";
 
 
@@ -28,6 +29,8 @@ const v1: MediumJSON = {
 };
 
 const v2 = `{"id":2,"name":"Medium Object","age":18,"email":"me@jairus.dev","street":"I don't want to say my street","city":"I don't want to say this either","state":"It really depends","zip":"I forget what it is","tags":["me","dogs","mountains","bar","foo"]}`;
+
+expect(JSON.stringify(v1)).toBe(v2);
 
 bench(
   "Serialize Medium Object",

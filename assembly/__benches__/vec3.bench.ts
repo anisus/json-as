@@ -1,4 +1,5 @@
 import { JSON } from "..";
+import { expect } from "../__tests__/lib";
 import { bench } from "./lib/bench";
 
 
@@ -11,6 +12,8 @@ class Vec3 {
 
 const v1: Vec3 = { x: 1, y: 2, z: 3 };
 const v2 = '{"x":1,"y":2,"z":3}';
+
+expect(JSON.stringify(v1)).toBe(v2);
 
 bench(
   "Serialize Vec3",

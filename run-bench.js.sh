@@ -1,7 +1,7 @@
 #!/bin/bash
 RUNTIMES=${RUNTIMES:-"v8-liftoff v8-ignition v8-sparkplug v8-turbofan jsc-default"}
 npx tsc -p ./bench > /dev/null 2>&1
-for file in ./bench/vec3.bench.ts; do
+for file in ./bench/*.bench.ts; do
   filename=$(basename -- "$file")
   file_js="${filename%.ts}.js"
 

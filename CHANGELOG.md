@@ -1,5 +1,13 @@
 # Change Log
 
+## 2025-05-23 - 1.1.5
+
+- fix: index.js didn't point to correct file, thus creating a compiler crash
+
+## 2025-05-23 - 1.1.4
+
+- revert: grouping properties in favor of memory.compare
+
 ## 2025-05-23 - 1.1.3
 
 - feat: group properties of structs before code generation

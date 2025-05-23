@@ -2,6 +2,10 @@
 
 ## 2025-05-22 - 1.1.1
 
+- fix: correct small typos in string value deserialization port
+
+## 2025-05-22 - 1.1.1
+
 - fix: remove random logs
 
 ## 2025-05-22 - 1.1.0

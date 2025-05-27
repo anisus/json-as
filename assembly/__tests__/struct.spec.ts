@@ -54,6 +54,7 @@ describe("Should ignore properties decorated with @omit", () => {
 
 describe("Should deserialize structs", () => {
   expect(JSON.stringify(JSON.parse<Vec3>('{"x":3.4,"y":1.2,"z":8.3}'))).toBe('{"x":3.4,"y":1.2,"z":8.3}');
+  expect(JSON.stringify(JSON.parse<Vec3>('{"x":3.4,"a":1.3,"y":1.2,"z":8.3}'))).toBe('{"x":3.4,"y":1.2,"z":8.3}');
 });
 
 describe("Should deserialize structs with whitespace", () => {

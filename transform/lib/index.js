@@ -695,6 +695,7 @@ class JSONTransform extends Visitor {
         }
         DESERIALIZE += " else {\n";
         DESERIALIZE += "   srcStart += 2;\n";
+        DESERIALIZE += "   keyStart = 0;\n";
         DESERIALIZE += "}\n";
         DESERIALIZE += "\n    }\n";
         indentDec();

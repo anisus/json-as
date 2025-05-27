@@ -384,7 +384,7 @@ class JSONTransform extends Visitor {
         .sort((a, b) => b.length - a.length);
     };
 
-    const generateGroups = (members: Property[], cb: (group: Property[]) => void) => {
+    const generateGroups = (members: Property[], cb: (group: Property[]) => void, nil: boolean = false) => {
       const groups = groupMembers(members);
       DESERIALIZE += "     switch (<u32>keyEnd - <u32>keyStart) {\n";
 
@@ -396,7 +396,7 @@ class JSONTransform extends Visitor {
       }
 
       DESERIALIZE += "    }\n";
-      if (!(members[0].node.type.isNullable || isBoolean(members[0].type)))DESERIALIZE += "  break;\n";
+      if (!members[0].node.type.isNullable && !isBoolean(members[0].type)) DESERIALIZE += "  break;\n";
     }
 
     const generateComparisions = (members: Property[]) => {
@@ -677,7 +677,7 @@ class JSONTransform extends Visitor {
           DESERIALIZE += indent + '            throw new Error("Unexpected key in JSON object \'" + String.fromCharCode(load<u16>(srcStart)) + "\' at position " + (srcEnd - srcStart).toString());\n';
           DESERIALIZE += indent + "          }\n";
         }
-      });
+      }, true);
 
       DESERIALIZE += "        }"; // Close first char check
       DESERIALIZE += "\n      }"; // Close first char check

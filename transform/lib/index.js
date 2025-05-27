@@ -9,6 +9,22 @@ import { getClasses, getImportedClass } from "./linker.js";
 let indent = "  ";
 const DEBUG = process.env["JSON_DEBUG"];
 const STRICT = !(process.env["JSON_STRICT"] && process.env["JSON_STRICT"] == "false");
+class CustomTransform extends Visitor {
+    static SN = new CustomTransform();
+    visitCallExpression(node) {
+        if (node.expression.kind != 21 || node.expression.property.text != "stringify")
+            return;
+        if (node.expression.expression.kind != 6 || node.expression.expression.text != "JSON")
+            return;
+        node.expression.expression = Node.createPropertyAccessExpression(Node.createIdentifierExpression("JSON", node.expression.range), Node.createIdentifierExpression("internal", node.expression.range), node.expression.range);
+        super.visitCallExpression(node);
+    }
+    static visit(node, ref = null) {
+        if (!node)
+            return;
+        CustomTransform.SN.visit(node, ref);
+    }
+}
 class JSONTransform extends Visitor {
     static SN = new JSONTransform();
     program;
@@ -49,6 +65,7 @@ class JSONTransform extends Visitor {
         if (serializers.length) {
             this.schema.custom = true;
             const serializer = serializers[0];
+            CustomTransform.visit(serializer);
             if (serializer.signature.parameters.length > 1)
                 throwError("Found too many parameters in custom serializer for " + this.schema.name + ", but serializers can only accept one parameter of type '" + this.schema.name + "'!", serializer.signature.parameters[1].range);
             if (serializer.signature.parameters.length > 0 && serializer.signature.parameters[0].type.name.identifier.text != node.name.text && serializer.signature.parameters[0].type.name.identifier.text != "this")
@@ -60,6 +77,7 @@ class JSONTransform extends Visitor {
             }
             SERIALIZE_CUSTOM += "  __SERIALIZE(ptr: usize): void {\n";
             SERIALIZE_CUSTOM += "    const data = this." + serializer.name.text + "(" + (serializer.signature.parameters.length ? "this" : "") + ");\n";
+            SERIALIZE_CUSTOM += "    bs.resetState();\n";
             SERIALIZE_CUSTOM += "    const dataSize = data.length << 1;\n";
             SERIALIZE_CUSTOM += "    memory.copy(bs.offset, changetype<usize>(data), dataSize);\n";
             SERIALIZE_CUSTOM += "    bs.offset += dataSize;\n";
@@ -180,10 +198,11 @@ class JSONTransform extends Visitor {
             SERIALIZE += indent + "bs.offset += 2;\n";
         }
         for (const member of this.schema.members) {
-            const nonNullType = member.type.replace(" | null", "");
-            if (!isPrimitive(nonNullType)) {
-                const schema = this.schemas.find((v) => v.name == nonNullType);
-                if (schema && !this.schema.deps.includes(schema)) {
+            if (isStruct(member.type)) {
+                const schema = this.schemas.find((v) => v.name == stripNull(member.type));
+                if (!schema)
+                    continue;
+                if (!this.schema.deps.includes(schema)) {
                     this.schema.deps.push(schema);
                     this.schema.byteSize += schema.byteSize;
                 }

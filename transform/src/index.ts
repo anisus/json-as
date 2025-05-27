@@ -1,7 +1,7 @@
-import { ClassDeclaration, FieldDeclaration, IdentifierExpression, Parser, Source, NodeKind, CommonFlags, ImportStatement, Node, Tokenizer, SourceKind, NamedTypeNode, Range, FEATURE_SIMD, FunctionExpression, MethodDeclaration, Statement, Program, Feature } from "assemblyscript/dist/assemblyscript.js";
+import { ClassDeclaration, FieldDeclaration, IdentifierExpression, Parser, Source, NodeKind, CommonFlags, ImportStatement, Node, Tokenizer, SourceKind, NamedTypeNode, Range, FEATURE_SIMD, FunctionExpression, MethodDeclaration, Statement, Program, Feature, CallExpression, PropertyAccessExpression } from "assemblyscript/dist/assemblyscript.js";
 import { Transform } from "assemblyscript/dist/transform.js";
 import { Visitor } from "./visitor.js";
-import { isStdlib, SimpleParser, toString } from "./util.js";
+import { cloneNode, isStdlib, replaceRef, SimpleParser, toString } from "./util.js";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { Property, PropertyFlags, Schema } from "./types.js";
@@ -11,6 +11,28 @@ let indent = "  ";
 
 const DEBUG = process.env["JSON_DEBUG"];
 const STRICT = !(process.env["JSON_STRICT"] && process.env["JSON_STRICT"] == "false");
+
+class CustomTransform extends Visitor {
+  static SN: CustomTransform = new CustomTransform();
+  visitCallExpression(node: CallExpression) {
+
+    if (node.expression.kind != NodeKind.PropertyAccess || (node.expression as PropertyAccessExpression).property.text != "stringify") return;
+    if ((node.expression as PropertyAccessExpression).expression.kind != NodeKind.Identifier || ((node.expression as PropertyAccessExpression).expression as IdentifierExpression).text != "JSON") return;
+
+    (node.expression as PropertyAccessExpression).expression = Node.createPropertyAccessExpression(
+      Node.createIdentifierExpression("JSON", node.expression.range),
+      Node.createIdentifierExpression("internal", node.expression.range),
+      node.expression.range
+    );
+    super.visitCallExpression(node);
+    // console.log(toString(node));
+    // console.log(SimpleParser.parseStatement("JSON.internal.stringify").expression.expression)
+  }
+  static visit(node: Node | Node[], ref: Node | null = null): void {
+    if (!node) return;
+    CustomTransform.SN.visit(node, ref);
+  }
+}
 
 class JSONTransform extends Visitor {
   static SN: JSONTransform = new JSONTransform();
@@ -61,6 +83,9 @@ class JSONTransform extends Visitor {
     if (serializers.length) {
       this.schema.custom = true;
       const serializer = serializers[0];
+
+      CustomTransform.visit(serializer);
+
       // if (!serializer.signature.parameters.length) throwError("Could not find any parameters in custom serializer for " + this.schema.name + ". Serializers must have one parameter like 'serializer(self: " + this.schema.name + "): string {}'", serializer.range);
       if (serializer.signature.parameters.length > 1) throwError("Found too many parameters in custom serializer for " + this.schema.name + ", but serializers can only accept one parameter of type '" + this.schema.name + "'!", serializer.signature.parameters[1].range);
       if (serializer.signature.parameters.length > 0 && (<NamedTypeNode>serializer.signature.parameters[0].type).name.identifier.text != node.name.text && (<NamedTypeNode>serializer.signature.parameters[0].type).name.identifier.text != "this") throwError("Type of parameter for custom serializer does not match! It should be 'string'either be 'this' or '" + this.schema.name + "'", serializer.signature.parameters[0].type.range);
@@ -71,6 +96,7 @@ class JSONTransform extends Visitor {
       }
       SERIALIZE_CUSTOM += "  __SERIALIZE(ptr: usize): void {\n";
       SERIALIZE_CUSTOM += "    const data = this." + serializer.name.text + "(" + (serializer.signature.parameters.length ? "this" : "") + ");\n";
+      SERIALIZE_CUSTOM += "    bs.resetState();\n";
       SERIALIZE_CUSTOM += "    const dataSize = data.length << 1;\n";
       SERIALIZE_CUSTOM += "    memory.copy(bs.offset, changetype<usize>(data), dataSize);\n";
       SERIALIZE_CUSTOM += "    bs.offset += dataSize;\n";
@@ -199,13 +225,18 @@ class JSONTransform extends Visitor {
     }
 
     for (const member of this.schema.members) {
-      const nonNullType = member.type.replace(" | null", "");
-      if (!isPrimitive(nonNullType)) {
-        const schema = this.schemas.find((v) => v.name == nonNullType);
-        if (schema && !this.schema.deps.includes(schema)) {
+      if (isStruct(member.type)) {
+        const schema = this.schemas.find((v) => v.name == stripNull(member.type));
+        if (!schema) continue;
+
+        if (!this.schema.deps.includes(schema)) {
           this.schema.deps.push(schema);
           this.schema.byteSize += schema.byteSize;
         }
+
+        // if (schema.custom) {
+        //   member.flags.set(PropertyFlags.Custom, null);
+        // }
       }
     }
 
@@ -360,6 +391,11 @@ class JSONTransform extends Visitor {
     // if (shouldGroup) DESERIALIZE += "    const keySize = keyEnd - keyStart;\n";
 
     const groupMembers = (members: Property[]): Property[][] => {
+      // const customMembers = this.schema.members.filter((m) => m.flags.has(PropertyFlags.Custom));
+      // console.log("Custom members: ", customMembers.map((m) => m.name));
+
+      // members.push(...customMembers)
+
       const groups = new Map<number, Property[]>();
 
       for (const member of members) {
@@ -383,6 +419,43 @@ class JSONTransform extends Visitor {
         )
         .sort((a, b) => b.length - a.length);
     };
+
+    // const groupMembers = (members: Property[]): Property[][] => {
+    //   const customMembers = this.schema.members.filter((m) =>
+    //     m.flags.has(PropertyFlags.Custom)
+    //   );
+    //   console.log("Custom members: ", customMembers.map((m) => m.name));
+
+    //   const customSet = new Set(customMembers);
+    //   members = members.filter((m) => !customSet.has(m));
+    //   members.push(...customMembers);
+
+    //   const groups = new Map<number, Property[]>();
+
+    //   for (const member of members) {
+    //     const name = member.alias || member.name;
+    //     const length = name.length;
+
+    //     if (!groups.has(length)) {
+    //       groups.set(length, []);
+    //     }
+
+    //     groups.get(length)!.push(member);
+    //   }
+
+    //   return [...groups.entries()]
+    //     .sort(([a], [b]) => a - b)
+    //     .map(([_, group]) => {
+    //       const regulars = group.filter((m) => !customSet.has(m));
+    //       const customs = group.filter((m) => customSet.has(m));
+
+    //       const sortByLength = (a: Property, b: Property) =>
+    //         (a.alias || a.name).length - (b.alias || b.name).length;
+
+    //       return [...regulars.sort(sortByLength), ...customs.sort(sortByLength)];
+    //     });
+    // };
+
 
     const generateGroups = (members: Property[], cb: (group: Property[]) => void, nil: boolean = false) => {
       const groups = groupMembers(members);

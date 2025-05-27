@@ -4,6 +4,7 @@ export enum PropertyFlags {
   OmitNull,
   OmitIf,
   Raw,
+  Custom
 }
 
 export class Property {

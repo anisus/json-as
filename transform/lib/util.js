@@ -44,4 +44,73 @@ export function isStdlib(s) {
 export function toString(node) {
     return ASTBuilder.build(node);
 }
+export function replaceRef(node, replacement, ref) {
+    if (!node || !ref)
+        return;
+    const nodeExpr = stripExpr(node);
+    if (Array.isArray(ref)) {
+        for (let i = 0; i < ref.length; i++) {
+            if (stripExpr(ref[i]) === nodeExpr) {
+                if (Array.isArray(replacement))
+                    ref.splice(i, 1, ...replacement);
+                else
+                    ref.splice(i, 1, replacement);
+                return;
+            }
+        }
+    }
+    else if (typeof ref === "object") {
+        for (const key of Object.keys(ref)) {
+            const current = ref[key];
+            if (Array.isArray(current)) {
+                for (let i = 0; i < current.length; i++) {
+                    if (stripExpr(current[i]) === nodeExpr) {
+                        if (Array.isArray(replacement))
+                            current.splice(i, 1, ...replacement);
+                        else
+                            current.splice(i, 1, replacement);
+                        return;
+                    }
+                }
+            }
+            else if (stripExpr(current) === nodeExpr) {
+                ref[key] = replacement;
+                return;
+            }
+        }
+    }
+}
+export function cloneNode(input, seen = new WeakMap(), path = "") {
+    if (input === null || typeof input !== "object")
+        return input;
+    if (Array.isArray(input)) {
+        return input.map((item, index) => cloneNode(item, seen, `${path}[${index}]`));
+    }
+    if (seen.has(input))
+        return seen.get(input);
+    const prototype = Object.getPrototypeOf(input);
+    const clone = Array.isArray(input) ? [] : Object.create(prototype);
+    seen.set(input, clone);
+    for (const key of Reflect.ownKeys(input)) {
+        const value = input[key];
+        const newPath = path ? `${path}.${String(key)}` : String(key);
+        if (newPath.endsWith(".source")) {
+            clone[key] = value;
+        }
+        else if (value && typeof value === "object") {
+            clone[key] = cloneNode(value, seen, newPath);
+        }
+        else {
+            clone[key] = value;
+        }
+    }
+    return clone;
+}
+export function stripExpr(node) {
+    if (!node)
+        return node;
+    if (node.kind == NodeKind.Expression)
+        return node["expression"];
+    return node;
+}
 //# sourceMappingURL=util.js.map

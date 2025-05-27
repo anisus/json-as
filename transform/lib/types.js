@@ -3,6 +3,7 @@ export var PropertyFlags;
     PropertyFlags[PropertyFlags["OmitNull"] = 0] = "OmitNull";
     PropertyFlags[PropertyFlags["OmitIf"] = 1] = "OmitIf";
     PropertyFlags[PropertyFlags["Raw"] = 2] = "Raw";
+    PropertyFlags[PropertyFlags["Custom"] = 3] = "Custom";
 })(PropertyFlags || (PropertyFlags = {}));
 export class Property {
     name = "";

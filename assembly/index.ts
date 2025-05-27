@@ -515,6 +515,12 @@ export namespace JSON {
     }
   }
 
+  /**
+   * Serializes JSON data but writes directly to the buffer.
+   * Should only be used if you know what you are doing.
+   * @param src - T
+   * @returns void
+   */
   export function __serialize<T>(src: T): void {
     if (isBoolean<T>()) {
       serializeBool(src as bool);
@@ -565,6 +571,14 @@ export namespace JSON {
     }
   }
 
+  /**
+   * Deserializes JSON data directly from the buffer.
+   * Should only be used if you know what you are doing.
+   * @param srcStart - usize
+   * @param srcEnd - usize
+   * @param dst - usize
+   * @returns void
+   */
   export function __deserialize<T>(srcStart: usize, srcEnd: usize, dst: usize = 0): T {
     if (isBoolean<T>()) {
       // @ts-ignore: type
@@ -625,7 +639,16 @@ export namespace JSON {
       return changetype<string>(out);
     }
   }
+  /**
+   * Methods for use when using JSON methods inside another JSON method or custom serializer/deserializer.
+   */
   export namespace internal {
+    /**
+     * Serializes JSON data. Don't use this directly, use `JSON.stringify` instead.
+     * @param data - T
+     * @param out - string | null
+     * @returns - string
+     */
     // @ts-ignore: inline
     @inline export function stringify<T>(data: T, out: string | null = null): string {
       if (isBoolean<T>()) {

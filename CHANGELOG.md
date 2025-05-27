@@ -1,5 +1,9 @@
 # Change Log
 
+## 2025-05-27 - 1.1.8
+
+- feat: add support for calling `JSON.stringify/JSON.parse` methods inside of custom serializers, but not yet deserializers
+
 ## 2025-05-27 - 1.1.7
 
 - fix: bad boolean logic to decide whether to add 2nd break statement

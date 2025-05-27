@@ -10,7 +10,7 @@ import { getClasses, getImportedClass } from "./linker.js";
 let indent = "  ";
 
 const DEBUG = process.env["JSON_DEBUG"];
-const STRICT = !(process.env["JSON_STRICT"] && process.env["JSON_STRICT"] == "false");
+const STRICT = (process.env["JSON_STRICT"] && process.env["JSON_STRICT"] == "true");
 
 class CustomTransform extends Visitor {
   static SN: CustomTransform = new CustomTransform();

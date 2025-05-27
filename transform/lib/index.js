@@ -11,18 +11,30 @@ const DEBUG = process.env["JSON_DEBUG"];
 const STRICT = !(process.env["JSON_STRICT"] && process.env["JSON_STRICT"] == "false");
 class CustomTransform extends Visitor {
     static SN = new CustomTransform();
+    modify = false;
     visitCallExpression(node) {
+        super.visit(node.args, node);
         if (node.expression.kind != 21 || node.expression.property.text != "stringify")
             return;
         if (node.expression.expression.kind != 6 || node.expression.expression.text != "JSON")
             return;
-        node.expression.expression = Node.createPropertyAccessExpression(Node.createIdentifierExpression("JSON", node.expression.range), Node.createIdentifierExpression("internal", node.expression.range), node.expression.range);
-        super.visitCallExpression(node);
+        if (this.modify) {
+            node.expression.expression = Node.createPropertyAccessExpression(Node.createIdentifierExpression("JSON", node.expression.range), Node.createIdentifierExpression("internal", node.expression.range), node.expression.range);
+        }
+        this.modify = true;
     }
     static visit(node, ref = null) {
         if (!node)
             return;
+        CustomTransform.SN.modify = true;
         CustomTransform.SN.visit(node, ref);
+        CustomTransform.SN.modify = false;
+    }
+    static hasCall(node) {
+        if (!node)
+            return;
+        CustomTransform.SN.visit(node);
+        return CustomTransform.SN.modify;
     }
 }
 class JSONTransform extends Visitor {
@@ -77,7 +89,8 @@ class JSONTransform extends Visitor {
             }
             SERIALIZE_CUSTOM += "  __SERIALIZE(ptr: usize): void {\n";
             SERIALIZE_CUSTOM += "    const data = this." + serializer.name.text + "(" + (serializer.signature.parameters.length ? "this" : "") + ");\n";
-            SERIALIZE_CUSTOM += "    bs.resetState();\n";
+            if (CustomTransform.hasCall(serializer))
+                SERIALIZE_CUSTOM += "    bs.resetState();\n";
             SERIALIZE_CUSTOM += "    const dataSize = data.length << 1;\n";
             SERIALIZE_CUSTOM += "    memory.copy(bs.offset, changetype<usize>(data), dataSize);\n";
             SERIALIZE_CUSTOM += "    bs.offset += dataSize;\n";

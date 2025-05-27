@@ -14,23 +14,36 @@ const STRICT = !(process.env["JSON_STRICT"] && process.env["JSON_STRICT"] == "fa
 
 class CustomTransform extends Visitor {
   static SN: CustomTransform = new CustomTransform();
+
+  private modify: boolean = false;
   visitCallExpression(node: CallExpression) {
+    super.visit(node.args, node);
 
     if (node.expression.kind != NodeKind.PropertyAccess || (node.expression as PropertyAccessExpression).property.text != "stringify") return;
     if ((node.expression as PropertyAccessExpression).expression.kind != NodeKind.Identifier || ((node.expression as PropertyAccessExpression).expression as IdentifierExpression).text != "JSON") return;
 
-    (node.expression as PropertyAccessExpression).expression = Node.createPropertyAccessExpression(
-      Node.createIdentifierExpression("JSON", node.expression.range),
-      Node.createIdentifierExpression("internal", node.expression.range),
-      node.expression.range
-    );
-    super.visitCallExpression(node);
+    if (this.modify) {
+      (node.expression as PropertyAccessExpression).expression = Node.createPropertyAccessExpression(
+        Node.createIdentifierExpression("JSON", node.expression.range),
+        Node.createIdentifierExpression("internal", node.expression.range),
+        node.expression.range
+      );
+    }
+    this.modify = true;
+    
     // console.log(toString(node));
     // console.log(SimpleParser.parseStatement("JSON.internal.stringify").expression.expression)
   }
   static visit(node: Node | Node[], ref: Node | null = null): void {
     if (!node) return;
+    CustomTransform.SN.modify = true;
     CustomTransform.SN.visit(node, ref);
+    CustomTransform.SN.modify = false;
+  }
+  static hasCall(node: Node | Node[]): boolean {
+    if (!node) return;
+    CustomTransform.SN.visit(node);
+    return CustomTransform.SN.modify;
   }
 }
 
@@ -96,7 +109,7 @@ class JSONTransform extends Visitor {
       }
       SERIALIZE_CUSTOM += "  __SERIALIZE(ptr: usize): void {\n";
       SERIALIZE_CUSTOM += "    const data = this." + serializer.name.text + "(" + (serializer.signature.parameters.length ? "this" : "") + ");\n";
-      SERIALIZE_CUSTOM += "    bs.resetState();\n";
+      if (CustomTransform.hasCall(serializer)) SERIALIZE_CUSTOM += "    bs.resetState();\n";
       SERIALIZE_CUSTOM += "    const dataSize = data.length << 1;\n";
       SERIALIZE_CUSTOM += "    memory.copy(bs.offset, changetype<usize>(data), dataSize);\n";
       SERIALIZE_CUSTOM += "    bs.offset += dataSize;\n";

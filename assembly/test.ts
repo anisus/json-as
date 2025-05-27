@@ -1,4 +1,5 @@
 import { JSON } from ".";
+import { expect } from "./__tests__/lib";
 import { bytes } from "./util";
 
 @json

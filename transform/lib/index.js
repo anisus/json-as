@@ -438,7 +438,7 @@ class JSONTransform extends Visitor {
             }
             if (STRICT) {
                 DESERIALIZE += " else {\n";
-                DESERIALIZE += indent + '              throw new Error("Unexpected key in JSON object \'" + String.fromCharCode(load<u16>(srcStart)) + "\' at position " + (srcEnd - srcStart).toString());\n';
+                DESERIALIZE += indent + '              throw new Error("Unexpected key value pair in JSON object \'" + JSON.Util.ptrToStr(keyStart, keyEnd) + ":" + JSON.Util.ptrToStr(lastIndex, srcStart) + "\' at position " + (srcEnd - srcStart).toString());\n';
                 DESERIALIZE += indent + "            }\n";
             }
         };
@@ -538,17 +538,17 @@ class JSONTransform extends Visitor {
                     DESERIALIZE += toMemCDecl(Math.max(...group.map((m) => (m.alias || m.name).length << 1)), "            ");
                 }
                 const firstMemberName = group[0].alias || group[0].name;
-                DESERIALIZE += indent + "            if (" + getComparision(firstMemberName) + ") { // " + firstMemberName + "\n";
-                DESERIALIZE += indent + "              store<" + group[0].type + ">(changetype<usize>(out), true, offsetof<this>(" + JSON.stringify(group[0].name) + "));\n";
-                DESERIALIZE += indent + "              srcStart += 2;\n";
-                DESERIALIZE += indent + "              keyStart = 0;\n";
-                DESERIALIZE += indent + "              break;\n";
-                DESERIALIZE += indent + "            }";
+                DESERIALIZE += indent + "          if (" + getComparision(firstMemberName) + ") { // " + firstMemberName + "\n";
+                DESERIALIZE += indent + "            store<" + group[0].type + ">(changetype<usize>(out), true, offsetof<this>(" + JSON.stringify(group[0].name) + "));\n";
+                DESERIALIZE += indent + "            srcStart += 2;\n";
+                DESERIALIZE += indent + "            keyStart = 0;\n";
+                DESERIALIZE += indent + "            break;\n";
+                DESERIALIZE += indent + "          }";
                 for (let i = 1; i < group.length; i++) {
                     const member = group[i];
                     const memberName = member.alias || member.name;
                     DESERIALIZE += indent + " else if (" + getComparision(memberName) + ") { // " + memberName + "\n";
-                    DESERIALIZE += indent + "            store<" + member.type + ">(changetype<usize>(out), true, offsetof<this>(" + JSON.stringify(member.name) + "));\n";
+                    DESERIALIZE += indent + "            store<" + group[0].type + ">(changetype<usize>(out), true, offsetof<this>(" + JSON.stringify(member.name) + "));\n";
                     DESERIALIZE += indent + "            srcStart += 2;\n";
                     DESERIALIZE += indent + "            keyStart = 0;\n";
                     DESERIALIZE += indent + "            break;\n";
@@ -556,13 +556,18 @@ class JSONTransform extends Visitor {
                 }
                 if (STRICT) {
                     DESERIALIZE += " else {\n";
-                    DESERIALIZE += indent + '            throw new Error("Unexpected key in JSON object \'" + String.fromCharCode(load<u16>(srcStart)) + "\' at position " + (srcEnd - srcStart).toString());\n';
+                    DESERIALIZE += indent + '            throw new Error("Unexpected key value pair in JSON object \'" + JSON.Util.ptrToStr(keyStart, keyEnd) + ":" + JSON.Util.ptrToStr(lastIndex, srcStart) + "\' at position " + (srcEnd - srcStart).toString());\n';
                     DESERIALIZE += indent + "          }\n";
                 }
-            });
+            }, true);
             DESERIALIZE += "        }";
+            DESERIALIZE += " else {\n";
+            DESERIALIZE += "          throw new Error(\"Expected to find 'true' but found '\" + JSON.Util.ptrToStr(lastIndex, srcStart) + \"' instead at position \" + (srcEnd - srcStart).toString());\n";
+            DESERIALIZE += "        }";
+            DESERIALIZE += "\n      }";
             mbElse = " else ";
-            DESERIALIZE += " else if (load<u64>(srcStart, 2) == 28429466576093281) {\n";
+            DESERIALIZE += mbElse + "if (code == 102) {\n";
+            DESERIALIZE += "        if (load<u64>(srcStart, 2) == 28429466576093281) {\n";
             DESERIALIZE += "          srcStart += 10;\n";
             generateGroups(sortedMembers.boolean, (group) => {
                 if (group.some((m) => (m.alias || m.name).length << 1 == 2)) {
@@ -591,7 +596,7 @@ class JSONTransform extends Visitor {
                     const member = group[i];
                     const memberName = member.alias || member.name;
                     DESERIALIZE += indent + " else if (" + getComparision(memberName) + ") { // " + memberName + "\n";
-                    DESERIALIZE += indent + "            store<" + member.type + ">(changetype<usize>(out), false, offsetof<this>(" + JSON.stringify(member.name) + "));\n";
+                    DESERIALIZE += indent + "            store<" + group[0].type + ">(changetype<usize>(out), false, offsetof<this>(" + JSON.stringify(member.name) + "));\n";
                     DESERIALIZE += indent + "            srcStart += 2;\n";
                     DESERIALIZE += indent + "            keyStart = 0;\n";
                     DESERIALIZE += indent + "            break;\n";
@@ -599,12 +604,16 @@ class JSONTransform extends Visitor {
                 }
                 if (STRICT) {
                     DESERIALIZE += " else {\n";
-                    DESERIALIZE += indent + '            throw new Error("Unexpected key in JSON object \'" + String.fromCharCode(load<u16>(srcStart)) + "\' at position " + (srcEnd - srcStart).toString());\n';
+                    DESERIALIZE += indent + '            throw new Error("Unexpected key value pair in JSON object \'" + JSON.Util.ptrToStr(keyStart, keyEnd) + ":" + JSON.Util.ptrToStr(lastIndex, srcStart) + "\' at position " + (srcEnd - srcStart).toString());\n';
                     DESERIALIZE += indent + "          }\n";
                 }
-            });
-            DESERIALIZE += "        }\n";
-            DESERIALIZE += "      }";
+            }, true);
+            DESERIALIZE += "        }";
+            DESERIALIZE += " else {\n";
+            DESERIALIZE += "          throw new Error(\"Expected to find 'false' but found '\" + JSON.Util.ptrToStr(lastIndex, srcStart) + \"' instead at position \" + (srcEnd - srcStart).toString());\n";
+            DESERIALIZE += "        }";
+            DESERIALIZE += "\n      }";
+            mbElse = " else ";
         }
         if (sortedMembers.null.length) {
             DESERIALIZE += mbElse + "if (code == 110) {\n";
@@ -637,7 +646,7 @@ class JSONTransform extends Visitor {
                     const member = group[i];
                     const memberName = member.alias || member.name;
                     DESERIALIZE += indent + " else if (" + getComparision(memberName) + ") { // " + memberName + "\n";
-                    DESERIALIZE += indent + "            store<" + group[0].type + ">(changetype<usize>(out), null, offsetof<this>(" + JSON.stringify(group[0].name) + "));\n";
+                    DESERIALIZE += indent + "            store<" + group[0].type + ">(changetype<usize>(out), null, offsetof<this>(" + JSON.stringify(member.name) + "));\n";
                     DESERIALIZE += indent + "            srcStart += 2;\n";
                     DESERIALIZE += indent + "            keyStart = 0;\n";
                     DESERIALIZE += indent + "            break;\n";
@@ -645,7 +654,7 @@ class JSONTransform extends Visitor {
                 }
                 if (STRICT) {
                     DESERIALIZE += " else {\n";
-                    DESERIALIZE += indent + '            throw new Error("Unexpected key in JSON object \'" + String.fromCharCode(load<u16>(srcStart)) + "\' at position " + (srcEnd - srcStart).toString());\n';
+                    DESERIALIZE += indent + '            throw new Error("Unexpected key value pair in JSON object \'" + JSON.Util.ptrToStr(keyStart, keyEnd) + ":" + JSON.Util.ptrToStr(lastIndex, srcStart) + "\' at position " + (srcEnd - srcStart).toString());\n';
                     DESERIALIZE += indent + "          }\n";
                 }
             }, true);

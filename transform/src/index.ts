@@ -530,6 +530,13 @@ class JSONTransform extends Visitor {
         DESERIALIZE += " else {\n";
         DESERIALIZE += indent + '              throw new Error("Unexpected key value pair in JSON object \'" + JSON.Util.ptrToStr(keyStart, keyEnd) + ":" + JSON.Util.ptrToStr(lastIndex, srcStart) + "\' at position " + (srcEnd - srcStart).toString());\n';
         DESERIALIZE += indent + "            }\n";
+      } else {
+        DESERIALIZE += " else {\n";
+        if (isString(members[0].type)) DESERIALIZE += indent + '              srcStart += 4;\n';
+        else if (!complex) DESERIALIZE += indent + '              srcStart += 2;\n';
+        DESERIALIZE += indent + '              keyStart = 0;\n';
+        DESERIALIZE += indent + '              break;\n';
+        DESERIALIZE += indent + "            }\n";
       }
     };
 
@@ -666,6 +673,12 @@ class JSONTransform extends Visitor {
           DESERIALIZE += " else {\n";
           DESERIALIZE += indent + '            throw new Error("Unexpected key value pair in JSON object \'" + JSON.Util.ptrToStr(keyStart, keyEnd) + ":" + JSON.Util.ptrToStr(lastIndex, srcStart) + "\' at position " + (srcEnd - srcStart).toString());\n';
           DESERIALIZE += indent + "          }\n";
+        } else {
+          DESERIALIZE += " else { \n";
+          DESERIALIZE += indent + '              srcStart += 2;\n';
+          DESERIALIZE += indent + '              keyStart = 0;\n';
+          DESERIALIZE += indent + '              break;\n';
+          DESERIALIZE += indent + "            }\n";
         }
       }, true);
 
@@ -722,7 +735,13 @@ class JSONTransform extends Visitor {
           DESERIALIZE += " else {\n";
           DESERIALIZE += indent + '            throw new Error("Unexpected key value pair in JSON object \'" + JSON.Util.ptrToStr(keyStart, keyEnd) + ":" + JSON.Util.ptrToStr(lastIndex, srcStart) + "\' at position " + (srcEnd - srcStart).toString());\n';
           DESERIALIZE += indent + "          }\n";
-        }
+        } else {
+        DESERIALIZE += " else { \n";
+        DESERIALIZE += indent + '              srcStart += 2;\n';
+        DESERIALIZE += indent + '              keyStart = 0;\n';
+        DESERIALIZE += indent + '              break;\n';
+        DESERIALIZE += indent + "            }\n";
+      }
       }, true);
 
       DESERIALIZE += "        }"; // Close first char check
@@ -779,7 +798,13 @@ class JSONTransform extends Visitor {
           DESERIALIZE += " else {\n";
           DESERIALIZE += indent + '            throw new Error("Unexpected key value pair in JSON object \'" + JSON.Util.ptrToStr(keyStart, keyEnd) + ":" + JSON.Util.ptrToStr(lastIndex, srcStart) + "\' at position " + (srcEnd - srcStart).toString());\n';
           DESERIALIZE += indent + "          }\n";
-        }
+        } else {
+        DESERIALIZE += " else { \n";
+        DESERIALIZE += indent + '              srcStart += 2;\n';
+        DESERIALIZE += indent + '              keyStart = 0;\n';
+        DESERIALIZE += indent + '              break;\n';
+        DESERIALIZE += indent + "            }\n";
+      }
       }, true);
 
       DESERIALIZE += "        }"; // Close first char check

@@ -244,19 +244,10 @@ class GenericEnum<T> {
   getValue(): T | null {
     return this.value
   }
-  __SERIALIZE(ptr: usize): void {
-    const data = this.serialize(this);
-    const dataSize = data.length << 1;
-    memory.copy(bs.offset, changetype<usize>(data), dataSize);
-    bs.offset += dataSize;
-  }
   @serializer
   serialize<T>(self: GenericEnum<T>): string {
     const tagJson = JSON.stringify(self.tag);
-    console.log("Tag JSON: " + tagJson);
     const valueJson = JSON.stringify(self.value);
-    console.log("Value JSON: " + valueJson);
-    bs.resetState();
     return `{${tagJson}:${valueJson}}`
   }
   @deserializer
@@ -289,16 +280,13 @@ class Node<T> {
 
 const enumValue = GenericEnum.create<string>("success", "Hello World")
 
-// Create a Node containing the enum
-const node = new Node<GenericEnum<string>>()
+const node = new Node<GenericEnum<string>>();
 node.name = "test-node";
 node.id = 42;
 node.data = enumValue;
 
-// Test serialization
-const serialized = JSON.stringify(node)
-console.log("Serialized Node: " + serialized)
+const serialized = JSON.stringify(node);
+console.log("Serialized Node: " + serialized);
 
-// Test deserialization
 const deserialized = JSON.parse<JSON.Obj>(serialized)
-console.log("Deserialized Node: " + JSON.stringify(deserialized))
+console.log("Deserialized Node: " + JSON.stringify(deserialized));

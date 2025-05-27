@@ -17,8 +17,8 @@ class CustomTransform extends Visitor {
 
   private modify: boolean = false;
   visitCallExpression(node: CallExpression) {
-    super.visit(node.args, node);
 
+    super.visit(node.args, node);
     if (node.expression.kind != NodeKind.PropertyAccess || (node.expression as PropertyAccessExpression).property.text != "stringify") return;
     if ((node.expression as PropertyAccessExpression).expression.kind != NodeKind.Identifier || ((node.expression as PropertyAccessExpression).expression as IdentifierExpression).text != "JSON") return;
 
@@ -42,6 +42,7 @@ class CustomTransform extends Visitor {
   }
   static hasCall(node: Node | Node[]): boolean {
     if (!node) return;
+    CustomTransform.SN.modify = false;
     CustomTransform.SN.visit(node);
     return CustomTransform.SN.modify;
   }
@@ -96,7 +97,8 @@ class JSONTransform extends Visitor {
     if (serializers.length) {
       this.schema.custom = true;
       const serializer = serializers[0];
-
+      const hasCall = CustomTransform.hasCall(serializer);
+      
       CustomTransform.visit(serializer);
 
       // if (!serializer.signature.parameters.length) throwError("Could not find any parameters in custom serializer for " + this.schema.name + ". Serializers must have one parameter like 'serializer(self: " + this.schema.name + "): string {}'", serializer.range);
@@ -109,7 +111,7 @@ class JSONTransform extends Visitor {
       }
       SERIALIZE_CUSTOM += "  __SERIALIZE(ptr: usize): void {\n";
       SERIALIZE_CUSTOM += "    const data = this." + serializer.name.text + "(" + (serializer.signature.parameters.length ? "this" : "") + ");\n";
-      if (CustomTransform.hasCall(serializer)) SERIALIZE_CUSTOM += "    bs.resetState();\n";
+      if (hasCall) SERIALIZE_CUSTOM += "    bs.resetState();\n";
       SERIALIZE_CUSTOM += "    const dataSize = data.length << 1;\n";
       SERIALIZE_CUSTOM += "    memory.copy(bs.offset, changetype<usize>(data), dataSize);\n";
       SERIALIZE_CUSTOM += "    bs.offset += dataSize;\n";

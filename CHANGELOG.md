@@ -1,5 +1,9 @@
 # Change Log
 
+## 2025-05-27 - 1.1.7
+
+- fix: bad boolean logic to decide whether to add 2nd break statement
+
 ## 2025-05-23 - 1.1.6
 
 - fix: null and boolean fields would miscalculate offsets when deserializing

@@ -1,10 +1,19 @@
+let currentDescription: string = "";
 export function describe(description: string, routine: () => void): void {
+  currentDescription = description;
   routine();
-  // console.log("  " + description + " OK");
 }
 
-export function expect(left: string): Expectation {
-  return new Expectation(left);
+export function it(description: string, routine: () => void): void {
+  currentDescription = description;
+  routine();
+}
+
+export function expect<T>(left: T): Expectation {
+  // @ts-ignore
+  if (!isDefined(left.toString)) throw new Error("Expected left to have a toString method, but it does not.");
+  // @ts-ignore
+  return new Expectation(left.toString());
 }
 
 class Expectation {
@@ -13,9 +22,14 @@ class Expectation {
   constructor(left: string) {
     this.left = left;
   }
-  toBe(right: string): void {
-    if (this.left != right) {
-      console.log("  (expected) -> " + right);
+  toBe<T>(right: T): void {
+    // @ts-ignore
+    if (!isDefined(right.toString)) throw new Error("Expected right to have a toString method, but it does not.");
+    // @ts-ignore
+    if (this.left != right.toString()) {
+      console.log("  " + currentDescription + "\n");
+      // @ts-ignore
+      console.log("  (expected) -> " + right.toString());
       console.log("  (received) -> " + this.left);
       unreachable();
     }

@@ -1,5 +1,12 @@
 # Change Log
 
+## 2025-05-27 - 1.1.9
+
+- change: strict mode is disabled by default. Enable it with JSON_STRICT=true
+- fix: should ignore properties of same length and type if no matching key exists
+- fix: should ignore properties of different type if no matching key exists
+- fix: should ignore complex properties if no matching key exists
+
 ## 2025-05-27 - 1.1.8
 
 - feat: add support for calling `JSON.stringify/JSON.parse` methods inside of custom serializers, but not yet deserializers

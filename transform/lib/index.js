@@ -8,8 +8,16 @@ import { Property, PropertyFlags, Schema } from "./types.js";
 import { getClass, getImportedClass } from "./linker.js";
 import { existsSync, writeFileSync } from "fs";
 let indent = "  ";
+let id = 0;
 const WRITE = process.env["JSON_WRITE"];
-const DEBUG = process.env["JSON_DEBUG"];
+const rawValue = process.env["JSON_DEBUG"];
+const DEBUG = rawValue === "true"
+    ? 1
+    : rawValue === "false" || rawValue === ""
+        ? 0
+        : isNaN(Number(rawValue))
+            ? 0
+            : Number(rawValue);
 const STRICT = process.env["JSON_STRICT"] && process.env["JSON_STRICT"] == "true";
 class CustomTransform extends Visitor {
     static SN = new CustomTransform();
@@ -75,7 +83,7 @@ class JSONTransform extends Visitor {
             if (!schema.parent) {
                 const depSearch = schema.deps.find((v) => v.name == extendsName);
                 if (depSearch) {
-                    if (DEBUG)
+                    if (DEBUG > 0)
                         console.log("Found " + extendsName + " in dependencies of " + node.range.source.internalPath);
                     schema.deps.push(depSearch);
                     schema.parent = depSearch;
@@ -83,7 +91,7 @@ class JSONTransform extends Visitor {
                 else {
                     const internalSearch = getClass(extendsName, node.range.source);
                     if (internalSearch) {
-                        if (DEBUG)
+                        if (DEBUG > 0)
                             console.log("Found " + extendsName + " internally from " + node.range.source.internalPath);
                         this.visitClassDeclaration(internalSearch);
                         schema.deps.push(this.schema);
@@ -94,7 +102,7 @@ class JSONTransform extends Visitor {
                     else {
                         const externalSearch = getImportedClass(extendsName, node.range.source, this.parser);
                         if (externalSearch) {
-                            if (DEBUG)
+                            if (DEBUG > 0)
                                 console.log("Found " + externalSearch.name.text + " externally from " + node.range.source.internalPath);
                             this.visitClassDeclaration(externalSearch);
                             schema.deps.push(this.schema);
@@ -144,14 +152,14 @@ class JSONTransform extends Visitor {
             for (const unknownType of unknown) {
                 const depSearch = schema.deps.find((v) => v.name == unknownType);
                 if (depSearch) {
-                    if (DEBUG)
+                    if (DEBUG > 0)
                         console.log("Found " + unknownType + " in dependencies of " + node.range.source.internalPath);
                     schema.deps.push(depSearch);
                     continue;
                 }
                 const internalSearch = getClass(unknownType, node.range.source);
                 if (internalSearch) {
-                    if (DEBUG)
+                    if (DEBUG > 0)
                         console.log("Found " + unknownType + " internally from " + node.range.source.internalPath);
                     this.visitClassDeclaration(internalSearch);
                     this.schemas.get(node.range.source.internalPath).push(this.schema);
@@ -161,7 +169,7 @@ class JSONTransform extends Visitor {
                 else {
                     const externalSearch = getImportedClass(unknownType, node.range.source, this.parser);
                     if (externalSearch) {
-                        if (DEBUG)
+                        if (DEBUG > 0)
                             console.log("Found " + externalSearch.name.text + " externally from " + node.range.source.internalPath);
                         this.visitClassDeclaration(externalSearch);
                         this.schemas.get(node.range.source.internalPath).push(this.schema);
@@ -179,7 +187,7 @@ class JSONTransform extends Visitor {
         let DESERIALIZE = "__DESERIALIZE<__JSON_T>(srcStart: usize, srcEnd: usize, out: __JSON_T): __JSON_T {\n";
         let DESERIALIZE_CUSTOM = "";
         let SERIALIZE_CUSTOM = "";
-        if (DEBUG)
+        if (DEBUG > 0)
             console.log("Created schema: " + this.schema.name + " in file " + node.range.source.normalizedPath + (this.schema.deps.length ? " with dependencies:\n  " + this.schema.deps.map((v) => v.name).join("\n  ") : ""));
         if (serializers.length > 1)
             throwError("Multiple serializers detected for class " + node.name.text + " but schemas can only have one serializer!", serializers[1].range);
@@ -423,6 +431,8 @@ class JSONTransform extends Visitor {
         DESERIALIZE += indent + "        if (isKey) {\n";
         DESERIALIZE += indent + "          keyStart = lastIndex;\n";
         DESERIALIZE += indent + "          keyEnd = srcStart;\n";
+        if (DEBUG > 1)
+            DESERIALIZE += indent + "          console.log(\"Key: \" + JSON.Util.ptrToStr(keyStart, keyEnd));\n";
         DESERIALIZE += indent + "          while (JSON.Util.isSpace((code = load<u16>((srcStart += 2))))) {}\n";
         DESERIALIZE += indent + "          if (code !== 58) throw new Error(\"Expected ':' after key at position \" + (srcEnd - srcStart).toString());\n";
         DESERIALIZE += indent + "          isKey = false;\n";
@@ -457,12 +467,14 @@ class JSONTransform extends Visitor {
                     DESERIALIZE += indent + '              throw new Error("Unexpected key value pair in JSON object \'" + JSON.Util.ptrToStr(keyStart, keyEnd) + ":" + JSON.Util.ptrToStr(lastIndex, srcStart) + "\' at position " + (srcEnd - srcStart).toString());\n';
                 }
                 else {
-                    if (type == "string")
+                    if (type == "string") {
                         DESERIALIZE += indent + "              srcStart += 4;\n";
-                    else
+                    }
+                    else if (type == "boolean" || type == "null" || type == "number") {
                         DESERIALIZE += indent + "              srcStart += 2;\n";
+                    }
                     DESERIALIZE += indent + "              keyStart = 0;\n";
-                    if (type != "boolean" && type != "null")
+                    if (type == "string" || type == "object" || type == "array" || type == "number")
                         DESERIALIZE += indent + "              break;\n";
                 }
             }
@@ -480,19 +492,23 @@ class JSONTransform extends Visitor {
                     DESERIALIZE += indent + '              throw new Error("Unexpected key value pair in JSON object \'" + JSON.Util.ptrToStr(keyStart, keyEnd) + ":" + JSON.Util.ptrToStr(lastIndex, srcStart) + "\' at position " + (srcEnd - srcStart).toString());\n';
                 }
                 else {
-                    if (type == "string")
+                    if (type == "string") {
                         DESERIALIZE += indent + "              srcStart += 4;\n";
-                    else
+                    }
+                    else if (type == "boolean" || type == "null" || type == "number") {
                         DESERIALIZE += indent + "              srcStart += 2;\n";
+                    }
                     DESERIALIZE += indent + "              keyStart = 0;\n";
+                    if (type == "string" || type == "object" || type == "array" || type == "number")
+                        DESERIALIZE += indent + "              break;\n";
                 }
                 DESERIALIZE += "        }\n";
                 DESERIALIZE += "    }\n";
-                if (!members[0].node.type.isNullable && !isBoolean(members[0].type))
+                if (type != "null" && type != "boolean")
                     DESERIALIZE += "  break;\n";
             }
         };
-        const generateComparisions = (members) => {
+        const generateConsts = (members) => {
             if (members.some((m) => (m.alias || m.name).length << 1 == 2)) {
                 DESERIALIZE += "            const code16 = load<u16>(keyStart);\n";
             }
@@ -508,45 +524,6 @@ class JSONTransform extends Visitor {
             if (members.some((m) => (m.alias || m.name).length << 1 > 8)) {
                 DESERIALIZE += toMemCDecl(Math.max(...members.map((m) => (m.alias || m.name).length << 1)), "            ");
             }
-            const complex = isStruct(members[0].type, node.range.source) || members[0].type != "JSON.Obj" || isArray(members[0].type);
-            const firstMemberName = members[0].alias || members[0].name;
-            DESERIALIZE += indent + "            if (" + getComparision(firstMemberName) + ") { // " + firstMemberName + "\n";
-            DESERIALIZE += indent + "              store<" + members[0].type + ">(changetype<usize>(out), JSON.__deserialize<" + members[0].type + ">(lastIndex, srcStart" + (isString(members[0].type) ? " + 2" : "") + "), offsetof<this>(" + JSON.stringify(members[0].name) + "));\n";
-            if (isString(members[0].type))
-                DESERIALIZE += indent + "              srcStart += 4;\n";
-            else if (!complex)
-                DESERIALIZE += indent + "              srcStart += 2;\n";
-            DESERIALIZE += indent + "              keyStart = 0;\n";
-            DESERIALIZE += indent + "              break;\n";
-            DESERIALIZE += indent + "            }";
-            for (let i = 1; i < members.length; i++) {
-                const member = members[i];
-                const memberName = member.alias || member.name;
-                DESERIALIZE += indent + " else if (" + getComparision(memberName) + ") { // " + memberName + "\n";
-                DESERIALIZE += indent + "              store<" + member.type + ">(changetype<usize>(out), JSON.__deserialize<" + member.type + ">(lastIndex, srcStart" + (isString(member.type) ? " + 2" : "") + "), offsetof<this>(" + JSON.stringify(member.name) + "));\n";
-                if (isString(member.type))
-                    DESERIALIZE += indent + "              srcStart += 4;\n";
-                else if (!complex)
-                    DESERIALIZE += indent + "              srcStart += 2;\n";
-                DESERIALIZE += indent + "              keyStart = 0;\n";
-                DESERIALIZE += indent + "              break;\n";
-                DESERIALIZE += indent + "            }";
-            }
-            if (STRICT) {
-                DESERIALIZE += " else {\n";
-                DESERIALIZE += indent + '              throw new Error("Unexpected key value pair in JSON object \'" + JSON.Util.ptrToStr(keyStart, keyEnd) + ":" + JSON.Util.ptrToStr(lastIndex, srcStart) + "\' at position " + (srcEnd - srcStart).toString());\n';
-                DESERIALIZE += indent + "            }\n";
-            }
-            else {
-                DESERIALIZE += " else {\n";
-                if (isString(members[0].type))
-                    DESERIALIZE += indent + "              srcStart += 4;\n";
-                else if (!complex)
-                    DESERIALIZE += indent + "              srcStart += 2;\n";
-                DESERIALIZE += indent + "              keyStart = 0;\n";
-                DESERIALIZE += indent + "              break;\n";
-                DESERIALIZE += indent + "            }\n";
-            }
         };
         let mbElse = "      ";
         if (!STRICT || sortedMembers.string.length) {
@@ -556,7 +533,41 @@ class JSONTransform extends Visitor {
             DESERIALIZE += "          while (srcStart < srcEnd) {\n";
             DESERIALIZE += "            const code = load<u16>(srcStart);\n";
             DESERIALIZE += "            if (code == 34 && load<u16>(srcStart - 2) !== 92) {\n";
-            generateGroups(sortedMembers.string, generateComparisions, "string");
+            if (DEBUG > 1)
+                DESERIALIZE += "              console.log(\"Value (string, " + (++id) + "): \" + JSON.Util.ptrToStr(lastIndex, srcStart + 2));";
+            generateGroups(sortedMembers.string, (group) => {
+                generateConsts(group);
+                const first = group[0];
+                const fName = first.alias || first.name;
+                DESERIALIZE += indent + "            if (" + getComparision(fName) + ") { // " + fName + "\n";
+                DESERIALIZE += indent + "              store<" + first.type + ">(changetype<usize>(out), JSON.__deserialize<" + first.type + ">(lastIndex, srcStart + 2), offsetof<this>(" + JSON.stringify(first.name) + "));\n";
+                DESERIALIZE += indent + "              srcStart += 4;\n";
+                DESERIALIZE += indent + "              keyStart = 0;\n";
+                DESERIALIZE += indent + "              break;\n";
+                DESERIALIZE += indent + "            }";
+                for (let i = 1; i < group.length; i++) {
+                    const mem = group[i];
+                    const memName = mem.alias || mem.name;
+                    DESERIALIZE += indent + " else if (" + getComparision(memName) + ") { // " + memName + "\n";
+                    DESERIALIZE += indent + "              store<" + mem.type + ">(changetype<usize>(out), JSON.__deserialize<" + mem.type + ">(lastIndex, srcStart + 2), offsetof<this>(" + JSON.stringify(mem.name) + "));\n";
+                    DESERIALIZE += indent + "              srcStart += 4;\n";
+                    DESERIALIZE += indent + "              keyStart = 0;\n";
+                    DESERIALIZE += indent + "              break;\n";
+                    DESERIALIZE += indent + "            }";
+                }
+                if (STRICT) {
+                    DESERIALIZE += " else {\n";
+                    DESERIALIZE += indent + '              throw new Error("Unexpected key value pair in JSON object \'" + JSON.Util.ptrToStr(keyStart, keyEnd) + ":" + JSON.Util.ptrToStr(lastIndex, srcStart) + "\' at position " + (srcEnd - srcStart).toString());\n';
+                    DESERIALIZE += indent + "            }\n";
+                }
+                else {
+                    DESERIALIZE += " else {\n";
+                    DESERIALIZE += indent + "              srcStart += 4;\n";
+                    DESERIALIZE += indent + "              keyStart = 0;\n";
+                    DESERIALIZE += indent + "              break;\n";
+                    DESERIALIZE += indent + "            }\n";
+                }
+            }, "string");
             DESERIALIZE += "          }\n";
             DESERIALIZE += "          srcStart += 2;\n";
             DESERIALIZE += "        }\n";
@@ -570,7 +581,41 @@ class JSONTransform extends Visitor {
             DESERIALIZE += "        while (srcStart < srcEnd) {\n";
             DESERIALIZE += "          const code = load<u16>(srcStart);\n";
             DESERIALIZE += "          if (code == 44 || code == 125 || JSON.Util.isSpace(code)) {\n";
-            generateGroups(sortedMembers.number, generateComparisions, "number");
+            if (DEBUG > 1)
+                DESERIALIZE += "              console.log(\"Value (number, " + (++id) + "): \" + JSON.Util.ptrToStr(lastIndex, srcStart));";
+            generateGroups(sortedMembers.number, (group) => {
+                generateConsts(group);
+                const first = group[0];
+                const fName = first.alias || first.name;
+                DESERIALIZE += indent + "            if (" + getComparision(fName) + ") { // " + fName + "\n";
+                DESERIALIZE += indent + "              store<" + first.type + ">(changetype<usize>(out), JSON.__deserialize<" + first.type + ">(lastIndex, srcStart), offsetof<this>(" + JSON.stringify(first.name) + "));\n";
+                DESERIALIZE += indent + "              srcStart += 2;\n";
+                DESERIALIZE += indent + "              keyStart = 0;\n";
+                DESERIALIZE += indent + "              break;\n";
+                DESERIALIZE += indent + "            }";
+                for (let i = 1; i < group.length; i++) {
+                    const mem = group[i];
+                    const memName = mem.alias || mem.name;
+                    DESERIALIZE += indent + " else if (" + getComparision(memName) + ") { // " + memName + "\n";
+                    DESERIALIZE += indent + "              store<" + mem.type + ">(changetype<usize>(out), JSON.__deserialize<" + mem.type + ">(lastIndex, srcStart), offsetof<this>(" + JSON.stringify(mem.name) + "));\n";
+                    DESERIALIZE += indent + "              srcStart += 2;\n";
+                    DESERIALIZE += indent + "              keyStart = 0;\n";
+                    DESERIALIZE += indent + "              break;\n";
+                    DESERIALIZE += indent + "            }";
+                }
+                if (STRICT) {
+                    DESERIALIZE += " else {\n";
+                    DESERIALIZE += indent + '              throw new Error("Unexpected key value pair in JSON object \'" + JSON.Util.ptrToStr(keyStart, keyEnd) + ":" + JSON.Util.ptrToStr(lastIndex, srcStart) + "\' at position " + (srcEnd - srcStart).toString());\n';
+                    DESERIALIZE += indent + "            }\n";
+                }
+                else {
+                    DESERIALIZE += " else {\n";
+                    DESERIALIZE += indent + "              srcStart += 2;\n";
+                    DESERIALIZE += indent + "              keyStart = 0;\n";
+                    DESERIALIZE += indent + "              break;\n";
+                    DESERIALIZE += indent + "            }\n";
+                }
+            }, "number");
             DESERIALIZE += "          }\n";
             DESERIALIZE += "          srcStart += 2;\n";
             DESERIALIZE += "        }\n";
@@ -590,8 +635,39 @@ class JSONTransform extends Visitor {
             DESERIALIZE += "          } else if (code == 125) {\n";
             DESERIALIZE += "            if (--depth == 0) {\n";
             DESERIALIZE += "              srcStart += 2;\n";
+            if (DEBUG > 1)
+                DESERIALIZE += "              console.log(\"Value (object, " + (++id) + "): \" + JSON.Util.ptrToStr(lastIndex, srcStart));";
             indent = "  ";
-            generateGroups(sortedMembers.object, generateComparisions, "object");
+            generateGroups(sortedMembers.object, (group) => {
+                generateConsts(group);
+                const first = group[0];
+                const fName = first.alias || first.name;
+                DESERIALIZE += indent + "            if (" + getComparision(fName) + ") { // " + fName + "\n";
+                DESERIALIZE += indent + "              store<" + first.type + ">(changetype<usize>(out), JSON.__deserialize<" + first.type + ">(lastIndex, srcStart), offsetof<this>(" + JSON.stringify(first.name) + "));\n";
+                DESERIALIZE += indent + "              keyStart = 0;\n";
+                DESERIALIZE += indent + "              break;\n";
+                DESERIALIZE += indent + "            }";
+                for (let i = 1; i < group.length; i++) {
+                    const mem = group[i];
+                    const memName = mem.alias || mem.name;
+                    DESERIALIZE += indent + " else if (" + getComparision(memName) + ") { // " + memName + "\n";
+                    DESERIALIZE += indent + "              store<" + mem.type + ">(changetype<usize>(out), JSON.__deserialize<" + mem.type + ">(lastIndex, srcStart), offsetof<this>(" + JSON.stringify(mem.name) + "));\n";
+                    DESERIALIZE += indent + "              keyStart = 0;\n";
+                    DESERIALIZE += indent + "              break;\n";
+                    DESERIALIZE += indent + "            }";
+                }
+                if (STRICT) {
+                    DESERIALIZE += " else {\n";
+                    DESERIALIZE += indent + '              throw new Error("Unexpected key value pair in JSON object \'" + JSON.Util.ptrToStr(keyStart, keyEnd) + ":" + JSON.Util.ptrToStr(lastIndex, srcStart) + "\' at position " + (srcEnd - srcStart).toString());\n';
+                    DESERIALIZE += indent + "            }\n";
+                }
+                else {
+                    DESERIALIZE += " else {\n";
+                    DESERIALIZE += indent + "              keyStart = 0;\n";
+                    DESERIALIZE += indent + "              break;\n";
+                    DESERIALIZE += indent + "            }\n";
+                }
+            }, "object");
             indent = "";
             DESERIALIZE += "            }\n";
             DESERIALIZE += "          } else if (code == 123) depth++;\n";
@@ -613,8 +689,39 @@ class JSONTransform extends Visitor {
             DESERIALIZE += "          } else if (code == 93) {\n";
             DESERIALIZE += "            if (--depth == 0) {\n";
             DESERIALIZE += "              srcStart += 2;\n";
+            if (DEBUG > 1)
+                DESERIALIZE += "              console.log(\"Value (object, " + (++id) + "): \" + JSON.Util.ptrToStr(lastIndex, srcStart));";
             indent = "  ";
-            generateGroups(sortedMembers.array, generateComparisions, "array");
+            generateGroups(sortedMembers.array, (group) => {
+                generateConsts(group);
+                const first = group[0];
+                const fName = first.alias || first.name;
+                DESERIALIZE += indent + "            if (" + getComparision(fName) + ") { // " + fName + "\n";
+                DESERIALIZE += indent + "              store<" + first.type + ">(changetype<usize>(out), JSON.__deserialize<" + first.type + ">(lastIndex, srcStart), offsetof<this>(" + JSON.stringify(first.name) + "));\n";
+                DESERIALIZE += indent + "              keyStart = 0;\n";
+                DESERIALIZE += indent + "              break;\n";
+                DESERIALIZE += indent + "            }";
+                for (let i = 1; i < group.length; i++) {
+                    const mem = group[i];
+                    const memName = mem.alias || mem.name;
+                    DESERIALIZE += indent + " else if (" + getComparision(memName) + ") { // " + memName + "\n";
+                    DESERIALIZE += indent + "              store<" + mem.type + ">(changetype<usize>(out), JSON.__deserialize<" + mem.type + ">(lastIndex, srcStart), offsetof<this>(" + JSON.stringify(mem.name) + "));\n";
+                    DESERIALIZE += indent + "              keyStart = 0;\n";
+                    DESERIALIZE += indent + "              break;\n";
+                    DESERIALIZE += indent + "            }";
+                }
+                if (STRICT) {
+                    DESERIALIZE += " else {\n";
+                    DESERIALIZE += indent + '              throw new Error("Unexpected key value pair in JSON object \'" + JSON.Util.ptrToStr(keyStart, keyEnd) + ":" + JSON.Util.ptrToStr(lastIndex, srcStart) + "\' at position " + (srcEnd - srcStart).toString());\n';
+                    DESERIALIZE += indent + "            }\n";
+                }
+                else {
+                    DESERIALIZE += " else {\n";
+                    DESERIALIZE += indent + "              keyStart = 0;\n";
+                    DESERIALIZE += indent + "              break;\n";
+                    DESERIALIZE += indent + "            }\n";
+                }
+            }, "array");
             indent = "";
             DESERIALIZE += "            }\n";
             DESERIALIZE += "          } else if (code == 91) depth++;\n";
@@ -627,34 +734,23 @@ class JSONTransform extends Visitor {
             DESERIALIZE += mbElse + "if (code == 116) {\n";
             DESERIALIZE += "        if (load<u64>(srcStart) == 28429475166421108) {\n";
             DESERIALIZE += "          srcStart += 8;\n";
+            if (DEBUG > 1)
+                DESERIALIZE += "              console.log(\"Value (bool, " + (++id) + "): \" + JSON.Util.ptrToStr(lastIndex, srcStart - 8));";
             generateGroups(sortedMembers.boolean, (group) => {
-                if (group.some((m) => (m.alias || m.name).length << 1 == 2)) {
-                    DESERIALIZE += "            const code16 = load<u16>(keyStart);\n";
-                }
-                if (group.some((m) => (m.alias || m.name).length << 1 == 4)) {
-                    DESERIALIZE += "            const code32 = load<u32>(keyStart);\n";
-                }
-                if (group.some((m) => (m.alias || m.name).length << 1 == 6)) {
-                    DESERIALIZE += "            const code48 = load<u64>(keyStart) & 0x0000FFFFFFFFFFFF;\n";
-                }
-                if (group.some((m) => (m.alias || m.name).length << 1 == 8)) {
-                    DESERIALIZE += "            const code64 = load<u64>(keyStart);\n";
-                }
-                if (group.some((m) => (m.alias || m.name).length << 1 > 8)) {
-                    DESERIALIZE += toMemCDecl(Math.max(...group.map((m) => (m.alias || m.name).length << 1)), "            ");
-                }
-                const firstMemberName = group[0].alias || group[0].name;
-                DESERIALIZE += indent + "          if (" + getComparision(firstMemberName) + ") { // " + firstMemberName + "\n";
-                DESERIALIZE += indent + "            store<" + group[0].type + ">(changetype<usize>(out), true, offsetof<this>(" + JSON.stringify(group[0].name) + "));\n";
+                generateConsts(group);
+                const first = group[0];
+                const fName = first.alias || first.name;
+                DESERIALIZE += indent + "          if (" + getComparision(fName) + ") { // " + fName + "\n";
+                DESERIALIZE += indent + "            store<" + first.type + ">(changetype<usize>(out), true, offsetof<this>(" + JSON.stringify(first.name) + "));\n";
                 DESERIALIZE += indent + "            srcStart += 2;\n";
                 DESERIALIZE += indent + "            keyStart = 0;\n";
                 DESERIALIZE += indent + "            break;\n";
                 DESERIALIZE += indent + "          }";
                 for (let i = 1; i < group.length; i++) {
-                    const member = group[i];
-                    const memberName = member.alias || member.name;
-                    DESERIALIZE += indent + " else if (" + getComparision(memberName) + ") { // " + memberName + "\n";
-                    DESERIALIZE += indent + "            store<" + group[0].type + ">(changetype<usize>(out), true, offsetof<this>(" + JSON.stringify(member.name) + "));\n";
+                    const mem = group[i];
+                    const memName = mem.alias || mem.name;
+                    DESERIALIZE += indent + " else if (" + getComparision(memName) + ") { // " + memName + "\n";
+                    DESERIALIZE += indent + "            store<" + mem.type + ">(changetype<usize>(out), true, offsetof<this>(" + JSON.stringify(mem.name) + "));\n";
                     DESERIALIZE += indent + "            srcStart += 2;\n";
                     DESERIALIZE += indent + "            keyStart = 0;\n";
                     DESERIALIZE += indent + "            break;\n";
@@ -682,34 +778,23 @@ class JSONTransform extends Visitor {
             DESERIALIZE += mbElse + "if (code == 102) {\n";
             DESERIALIZE += "        if (load<u64>(srcStart, 2) == 28429466576093281) {\n";
             DESERIALIZE += "          srcStart += 10;\n";
+            if (DEBUG > 1)
+                DESERIALIZE += "              console.log(\"Value (bool, " + (++id) + "): \" + JSON.Util.ptrToStr(lastIndex, srcStart - 10));";
             generateGroups(sortedMembers.boolean, (group) => {
-                if (group.some((m) => (m.alias || m.name).length << 1 == 2)) {
-                    DESERIALIZE += "            const code16 = load<u16>(keyStart);\n";
-                }
-                if (group.some((m) => (m.alias || m.name).length << 1 == 4)) {
-                    DESERIALIZE += "            const code32 = load<u32>(keyStart);\n";
-                }
-                if (group.some((m) => (m.alias || m.name).length << 1 == 6)) {
-                    DESERIALIZE += "            const code48 = load<u64>(keyStart) & 0x0000FFFFFFFFFFFF;\n";
-                }
-                if (group.some((m) => (m.alias || m.name).length << 1 == 8)) {
-                    DESERIALIZE += "            const code64 = load<u64>(keyStart);\n";
-                }
-                if (group.some((m) => (m.alias || m.name).length << 1 > 8)) {
-                    DESERIALIZE += toMemCDecl(Math.max(...group.map((m) => (m.alias || m.name).length << 1)), "            ");
-                }
-                const firstMemberName = group[0].alias || group[0].name;
-                DESERIALIZE += indent + "          if (" + getComparision(firstMemberName) + ") { // " + firstMemberName + "\n";
-                DESERIALIZE += indent + "            store<" + group[0].type + ">(changetype<usize>(out), false, offsetof<this>(" + JSON.stringify(group[0].name) + "));\n";
+                generateConsts(group);
+                const first = group[0];
+                const fName = first.alias || first.name;
+                DESERIALIZE += indent + "          if (" + getComparision(fName) + ") { // " + fName + "\n";
+                DESERIALIZE += indent + "            store<" + first.type + ">(changetype<usize>(out), false, offsetof<this>(" + JSON.stringify(first.name) + "));\n";
                 DESERIALIZE += indent + "            srcStart += 2;\n";
                 DESERIALIZE += indent + "            keyStart = 0;\n";
                 DESERIALIZE += indent + "            break;\n";
                 DESERIALIZE += indent + "          }";
                 for (let i = 1; i < group.length; i++) {
-                    const member = group[i];
-                    const memberName = member.alias || member.name;
-                    DESERIALIZE += indent + " else if (" + getComparision(memberName) + ") { // " + memberName + "\n";
-                    DESERIALIZE += indent + "            store<" + group[0].type + ">(changetype<usize>(out), false, offsetof<this>(" + JSON.stringify(member.name) + "));\n";
+                    const mem = group[i];
+                    const memName = mem.alias || mem.name;
+                    DESERIALIZE += indent + " else if (" + getComparision(memName) + ") { // " + memName + "\n";
+                    DESERIALIZE += indent + "            store<" + mem.type + ">(changetype<usize>(out), false, offsetof<this>(" + JSON.stringify(mem.name) + "));\n";
                     DESERIALIZE += indent + "            srcStart += 2;\n";
                     DESERIALIZE += indent + "            keyStart = 0;\n";
                     DESERIALIZE += indent + "            break;\n";
@@ -739,34 +824,23 @@ class JSONTransform extends Visitor {
             DESERIALIZE += mbElse + "if (code == 110) {\n";
             DESERIALIZE += "        if (load<u64>(srcStart) == 30399761348886638) {\n";
             DESERIALIZE += "          srcStart += 8;\n";
+            if (DEBUG > 1)
+                DESERIALIZE += "              console.log(\"Value (null, " + (++id) + "): \" + JSON.Util.ptrToStr(lastIndex, srcStart - 8));";
             generateGroups(sortedMembers.null, (group) => {
-                if (group.some((m) => (m.alias || m.name).length << 1 == 2)) {
-                    DESERIALIZE += "            const code16 = load<u16>(keyStart);\n";
-                }
-                if (group.some((m) => (m.alias || m.name).length << 1 == 4)) {
-                    DESERIALIZE += "            const code32 = load<u32>(keyStart);\n";
-                }
-                if (group.some((m) => (m.alias || m.name).length << 1 == 6)) {
-                    DESERIALIZE += "            const code48 = load<u64>(keyStart) & 0x0000FFFFFFFFFFFF;\n";
-                }
-                if (group.some((m) => (m.alias || m.name).length << 1 == 8)) {
-                    DESERIALIZE += "            const code64 = load<u64>(keyStart);\n";
-                }
-                if (group.some((m) => (m.alias || m.name).length << 1 > 8)) {
-                    DESERIALIZE += toMemCDecl(Math.max(...group.map((m) => (m.alias || m.name).length << 1)), "            ");
-                }
-                const firstMemberName = group[0].alias || group[0].name;
-                DESERIALIZE += indent + "          if (" + getComparision(firstMemberName) + ") { // " + firstMemberName + "\n";
-                DESERIALIZE += indent + "            store<" + group[0].type + ">(changetype<usize>(out), null, offsetof<this>(" + JSON.stringify(group[0].name) + "));\n";
+                generateConsts(group);
+                const first = group[0];
+                const fName = first.alias || first.name;
+                DESERIALIZE += indent + "          if (" + getComparision(fName) + ") { // " + fName + "\n";
+                DESERIALIZE += indent + "            store<" + first.type + ">(changetype<usize>(out), null, offsetof<this>(" + JSON.stringify(first.name) + "));\n";
                 DESERIALIZE += indent + "            srcStart += 2;\n";
                 DESERIALIZE += indent + "            keyStart = 0;\n";
                 DESERIALIZE += indent + "            break;\n";
                 DESERIALIZE += indent + "          }";
                 for (let i = 1; i < group.length; i++) {
-                    const member = group[i];
-                    const memberName = member.alias || member.name;
-                    DESERIALIZE += indent + " else if (" + getComparision(memberName) + ") { // " + memberName + "\n";
-                    DESERIALIZE += indent + "            store<" + group[0].type + ">(changetype<usize>(out), null, offsetof<this>(" + JSON.stringify(member.name) + "));\n";
+                    const mem = group[i];
+                    const memName = mem.alias || mem.name;
+                    DESERIALIZE += indent + " else if (" + getComparision(memName) + ") { // " + memName + "\n";
+                    DESERIALIZE += indent + "            store<" + mem.type + ">(changetype<usize>(out), null, offsetof<this>(" + JSON.stringify(mem.name) + "));\n";
                     DESERIALIZE += indent + "            srcStart += 2;\n";
                     DESERIALIZE += indent + "            keyStart = 0;\n";
                     DESERIALIZE += indent + "            break;\n";
@@ -806,7 +880,7 @@ class JSONTransform extends Visitor {
         SERIALIZE = SERIALIZE.slice(0, 32) + indent + "bs.proposeSize(" + this.schema.byteSize + ");\n" + SERIALIZE.slice(32);
         INITIALIZE += "  return this;\n";
         INITIALIZE += "}";
-        if (DEBUG) {
+        if (DEBUG > 0) {
             console.log(SERIALIZE_CUSTOM || SERIALIZE);
             console.log(INITIALIZE);
             console.log(DESERIALIZE_CUSTOM || DESERIALIZE);
@@ -830,7 +904,7 @@ class JSONTransform extends Visitor {
         let SERIALIZE_EMPTY = "@inline __SERIALIZE(ptr: usize): void {\n  bs.proposeSize(4);\n  store<u32>(bs.offset, 8192123);\n  bs.offset += 4;\n}";
         let INITIALIZE_EMPTY = "@inline __INITIALIZE(): this {\n  return this;\n}";
         let DESERIALIZE_EMPTY = "@inline __DESERIALIZE<__JSON_T>(srcStart: usize, srcEnd: usize, out: __JSON_T): __JSON_T {\n  return this;\n}";
-        if (DEBUG) {
+        if (DEBUG > 0) {
             console.log(SERIALIZE_EMPTY);
             console.log(INITIALIZE_EMPTY);
             console.log(DESERIALIZE_EMPTY);
@@ -895,14 +969,14 @@ class JSONTransform extends Visitor {
             const replaceNode = Node.createImportStatement([Node.createImportDeclaration(Node.createIdentifierExpression("bs", node.range, false), null, node.range)
             ], Node.createStringLiteralExpression(bsRel, node.range), node.range);
             node.range.source.statements.unshift(replaceNode);
-            if (DEBUG)
+            if (DEBUG > 0)
                 console.log("Added import: " + toString(replaceNode) + " to " + node.range.source.normalizedPath + "\n");
         }
         if (!jsonImport) {
             const replaceNode = Node.createImportStatement([Node.createImportDeclaration(Node.createIdentifierExpression("JSON", node.range, false), null, node.range)
             ], Node.createStringLiteralExpression(jsRel, node.range), node.range);
             node.range.source.statements.unshift(replaceNode);
-            if (DEBUG)
+            if (DEBUG > 0)
                 console.log("Added import: " + toString(replaceNode) + " to " + node.range.source.normalizedPath + "\n");
         }
     }

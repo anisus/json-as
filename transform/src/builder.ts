@@ -49,7 +49,7 @@ export class ASTBuilder extends Visitor {
     }
   }
 
-  visitThisExpression(node: ThisExpression, ref?: Node | null): void {=
+  visitThisExpression(node: ThisExpression, ref?: Node | null): void {
       this.sb.push("this");
   }
   visitTypeName(node: TypeName): void {

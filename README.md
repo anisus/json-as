@@ -6,7 +6,7 @@
 ██   ██      ██ ██    ██ ██  ██ ██       ██   ██      ██
  █████  ███████  ██████  ██   ████       ██   ██ ███████
  </span>
-    AssemblyScript - v1.1.9
+    AssemblyScript - v1.1.10
   </pre>
 </h6>
 
@@ -25,6 +25,7 @@ JSON is the de-facto serialization format of modern web applications, but its se
   - [Using Raw JSON Strings](#️-using-raw-json-strings)
   - [Custom Serializers](#️-using-custom-serializers-or-deserializers)
 - [Performance](#-performance)
+- [Debugging](#-debugging)
 - [License](#-license)
 - [Contact](#-contact)
 
@@ -444,6 +445,12 @@ These benchmarks compare this library to JavaScript's native `JSON.stringify` an
 - Generate optimized deserialization methods
 - Inline specific hot code paths
 - Implement error handling implementation
+
+## 🐛 Debugging
+
+`JSON_DEBUG=1` - Prints out generated code at compile-time
+`JSON_DEBUG=2` - The above and prints keys/values as they are deserialized
+`JSON_WRITE=path-to-file.ts` - Writes out generated code to `path-to-file.json.ts` for easy inspection
 
 ## 📃 License
 

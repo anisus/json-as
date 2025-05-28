@@ -117,13 +117,13 @@ class Vec3 {
 
     while (srcStart < srcEnd) {
       let code = load<u16>(srcStart);
-      while (JSON.Util.isSpace(code)) code = load<u16>(srcStart += 2);
+      while (JSON.Util.isSpace(code)) code = load<u16>((srcStart += 2));
       if (keyStart == 0) {
         if (code == 34 && load<u16>(srcStart - 2) !== 92) {
           if (isKey) {
             keyStart = lastIndex;
             keyEnd = srcStart;
-            while (JSON.Util.isSpace((code = load<u16>((srcStart += 2))))) { }
+            while (JSON.Util.isSpace((code = load<u16>((srcStart += 2))))) {}
             if (code !== 58) throw new Error("Expected ':' after key at position " + (srcEnd - srcStart).toString());
             isKey = false;
           } else {
@@ -142,15 +142,18 @@ class Vec3 {
               switch (<u32>keyEnd - <u32>keyStart) {
                 case 2: {
                   const code16 = load<u16>(keyStart);
-                  if (code16 == 120) { // x
+                  if (code16 == 120) {
+                    // x
                     store<f64>(changetype<usize>(out), JSON.__deserialize<f64>(lastIndex, srcStart), offsetof<this>("x"));
                     keyStart = 0;
                     break;
-                  } else if (code16 == 121) { // y
+                  } else if (code16 == 121) {
+                    // y
                     store<f64>(changetype<usize>(out), JSON.__deserialize<f64>(lastIndex, srcStart), offsetof<this>("y"));
                     keyStart = 0;
                     break;
-                  } else if (code16 == 122) { // z
+                  } else if (code16 == 122) {
+                    // z
                     store<f64>(changetype<usize>(out), JSON.__deserialize<f64>(lastIndex, srcStart), offsetof<this>("z"));
                     keyStart = 0;
                     break;

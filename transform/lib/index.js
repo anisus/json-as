@@ -8,7 +8,7 @@ import { Property, PropertyFlags, Schema } from "./types.js";
 import { getClasses, getImportedClass } from "./linker.js";
 let indent = "  ";
 const DEBUG = process.env["JSON_DEBUG"];
-const STRICT = (process.env["JSON_STRICT"] && process.env["JSON_STRICT"] == "true");
+const STRICT = process.env["JSON_STRICT"] && process.env["JSON_STRICT"] == "true";
 class CustomTransform extends Visitor {
     static SN = new CustomTransform();
     modify = false;
@@ -338,7 +338,7 @@ class JSONTransform extends Visitor {
         DESERIALIZE += indent + "  let keyStart: usize = 0;\n";
         DESERIALIZE += indent + "  let keyEnd: usize = 0;\n";
         DESERIALIZE += indent + "  let isKey = false;\n";
-        if (sortedMembers.object.length || sortedMembers.array.length)
+        if (!STRICT || sortedMembers.object.length || sortedMembers.array.length)
             DESERIALIZE += indent + "  let depth: i32 = 0;\n";
         DESERIALIZE += indent + "  let lastIndex: usize = 0;\n\n";
         DESERIALIZE += indent + "  while (srcStart < srcEnd && JSON.Util.isSpace(load<u16>(srcStart))) srcStart += 2;\n";
@@ -376,25 +376,53 @@ class JSONTransform extends Visitor {
                 groups.get(length).push(member);
             }
             return [...groups.values()]
-                .map(group => group.sort((a, b) => {
+                .map((group) => group.sort((a, b) => {
                 const aLen = (a.alias || a.name).length;
                 const bLen = (b.alias || b.name).length;
                 return aLen - bLen;
             }))
                 .sort((a, b) => b.length - a.length);
         };
-        const generateGroups = (members, cb, nil = false) => {
-            const groups = groupMembers(members);
-            DESERIALIZE += "     switch (<u32>keyEnd - <u32>keyStart) {\n";
-            for (const group of groups) {
-                const groupLen = (group[0].alias || group[0].name).length << 1;
-                DESERIALIZE += "           case " + groupLen + ": {\n";
-                cb(group);
-                DESERIALIZE += "\n            }\n";
+        const generateGroups = (members, cb, type) => {
+            if (!members.length) {
+                if (STRICT) {
+                    DESERIALIZE += indent + '              throw new Error("Unexpected key value pair in JSON object \'" + JSON.Util.ptrToStr(keyStart, keyEnd) + ":" + JSON.Util.ptrToStr(lastIndex, srcStart) + "\' at position " + (srcEnd - srcStart).toString());\n';
+                }
+                else {
+                    if (type == "string")
+                        DESERIALIZE += indent + "              srcStart += 4;\n";
+                    else
+                        DESERIALIZE += indent + "              srcStart += 2;\n";
+                    DESERIALIZE += indent + "              keyStart = 0;\n";
+                    if (type != "boolean" && type != "null")
+                        DESERIALIZE += indent + "              break;\n";
+                }
             }
-            DESERIALIZE += "    }\n";
-            if (!members[0].node.type.isNullable && !isBoolean(members[0].type))
-                DESERIALIZE += "  break;\n";
+            else {
+                const groups = groupMembers(members);
+                DESERIALIZE += "     switch (<u32>keyEnd - <u32>keyStart) {\n";
+                for (const group of groups) {
+                    const groupLen = (group[0].alias || group[0].name).length << 1;
+                    DESERIALIZE += "           case " + groupLen + ": {\n";
+                    cb(group);
+                    DESERIALIZE += "\n            }\n";
+                }
+                DESERIALIZE += "    default: {\n";
+                if (STRICT) {
+                    DESERIALIZE += indent + '              throw new Error("Unexpected key value pair in JSON object \'" + JSON.Util.ptrToStr(keyStart, keyEnd) + ":" + JSON.Util.ptrToStr(lastIndex, srcStart) + "\' at position " + (srcEnd - srcStart).toString());\n';
+                }
+                else {
+                    if (type == "string")
+                        DESERIALIZE += indent + "              srcStart += 4;\n";
+                    else
+                        DESERIALIZE += indent + "              srcStart += 2;\n";
+                    DESERIALIZE += indent + "              keyStart = 0;\n";
+                }
+                DESERIALIZE += "        }\n";
+                DESERIALIZE += "    }\n";
+                if (!members[0].node.type.isNullable && !isBoolean(members[0].type))
+                    DESERIALIZE += "  break;\n";
+            }
         };
         const generateComparisions = (members) => {
             if (members.some((m) => (m.alias || m.name).length << 1 == 2)) {
@@ -444,44 +472,44 @@ class JSONTransform extends Visitor {
             else {
                 DESERIALIZE += " else {\n";
                 if (isString(members[0].type))
-                    DESERIALIZE += indent + '              srcStart += 4;\n';
+                    DESERIALIZE += indent + "              srcStart += 4;\n";
                 else if (!complex)
-                    DESERIALIZE += indent + '              srcStart += 2;\n';
-                DESERIALIZE += indent + '              keyStart = 0;\n';
-                DESERIALIZE += indent + '              break;\n';
+                    DESERIALIZE += indent + "              srcStart += 2;\n";
+                DESERIALIZE += indent + "              keyStart = 0;\n";
+                DESERIALIZE += indent + "              break;\n";
                 DESERIALIZE += indent + "            }\n";
             }
         };
         let mbElse = "      ";
-        if (sortedMembers.string.length) {
+        if (!STRICT || sortedMembers.string.length) {
             DESERIALIZE += mbElse + "if (code == 34) {\n";
             DESERIALIZE += "          lastIndex = srcStart;\n";
             DESERIALIZE += "          srcStart += 2;\n";
             DESERIALIZE += "          while (srcStart < srcEnd) {\n";
             DESERIALIZE += "            const code = load<u16>(srcStart);\n";
             DESERIALIZE += "            if (code == 34 && load<u16>(srcStart - 2) !== 92) {\n";
-            generateGroups(sortedMembers.string, generateComparisions);
+            generateGroups(sortedMembers.string, generateComparisions, "string");
             DESERIALIZE += "          }\n";
             DESERIALIZE += "          srcStart += 2;\n";
             DESERIALIZE += "        }\n";
             DESERIALIZE += "      }\n";
             mbElse = " else ";
         }
-        if (sortedMembers.number.length) {
+        if (!STRICT || sortedMembers.number.length) {
             DESERIALIZE += mbElse + "if (code - 48 <= 9 || code == 45) {\n";
             DESERIALIZE += "        lastIndex = srcStart;\n";
             DESERIALIZE += "        srcStart += 2;\n";
             DESERIALIZE += "        while (srcStart < srcEnd) {\n";
             DESERIALIZE += "          const code = load<u16>(srcStart);\n";
             DESERIALIZE += "          if (code == 44 || code == 125 || JSON.Util.isSpace(code)) {\n";
-            generateGroups(sortedMembers.number, generateComparisions);
+            generateGroups(sortedMembers.number, generateComparisions, "number");
             DESERIALIZE += "          }\n";
             DESERIALIZE += "          srcStart += 2;\n";
             DESERIALIZE += "        }\n";
             DESERIALIZE += "      }";
             mbElse = " else ";
         }
-        if (sortedMembers.object.length) {
+        if (!STRICT || sortedMembers.object.length) {
             DESERIALIZE += mbElse + "if (code == 123) {\n";
             DESERIALIZE += "        lastIndex = srcStart;\n";
             DESERIALIZE += "        depth++;\n";
@@ -495,7 +523,7 @@ class JSONTransform extends Visitor {
             DESERIALIZE += "            if (--depth == 0) {\n";
             DESERIALIZE += "              srcStart += 2;\n";
             indent = "  ";
-            generateGroups(sortedMembers.object, generateComparisions);
+            generateGroups(sortedMembers.object, generateComparisions, "object");
             indent = "";
             DESERIALIZE += "            }\n";
             DESERIALIZE += "          } else if (code == 123) depth++;\n";
@@ -504,7 +532,7 @@ class JSONTransform extends Visitor {
             DESERIALIZE += "      }";
             mbElse = " else ";
         }
-        if (sortedMembers.array.length) {
+        if (!STRICT || sortedMembers.array.length) {
             DESERIALIZE += mbElse + "if (code == 91) {\n";
             DESERIALIZE += "        lastIndex = srcStart;\n";
             DESERIALIZE += "        depth++;\n";
@@ -518,7 +546,7 @@ class JSONTransform extends Visitor {
             DESERIALIZE += "            if (--depth == 0) {\n";
             DESERIALIZE += "              srcStart += 2;\n";
             indent = "  ";
-            generateGroups(sortedMembers.array, generateComparisions);
+            generateGroups(sortedMembers.array, generateComparisions, "array");
             indent = "";
             DESERIALIZE += "            }\n";
             DESERIALIZE += "          } else if (code == 91) depth++;\n";
@@ -527,7 +555,7 @@ class JSONTransform extends Visitor {
             DESERIALIZE += "      }";
             mbElse = " else ";
         }
-        if (sortedMembers.boolean.length) {
+        if (!STRICT || sortedMembers.boolean.length) {
             DESERIALIZE += mbElse + "if (code == 116) {\n";
             DESERIALIZE += "        if (load<u64>(srcStart) == 28429475166421108) {\n";
             DESERIALIZE += "          srcStart += 8;\n";
@@ -571,12 +599,12 @@ class JSONTransform extends Visitor {
                 }
                 else {
                     DESERIALIZE += " else { \n";
-                    DESERIALIZE += indent + '              srcStart += 2;\n';
-                    DESERIALIZE += indent + '              keyStart = 0;\n';
-                    DESERIALIZE += indent + '              break;\n';
+                    DESERIALIZE += indent + "              srcStart += 2;\n";
+                    DESERIALIZE += indent + "              keyStart = 0;\n";
+                    DESERIALIZE += indent + "              break;\n";
                     DESERIALIZE += indent + "            }\n";
                 }
-            }, true);
+            }, "boolean");
             DESERIALIZE += "        }";
             DESERIALIZE += " else {\n";
             DESERIALIZE += "          throw new Error(\"Expected to find 'true' but found '\" + JSON.Util.ptrToStr(lastIndex, srcStart) + \"' instead at position \" + (srcEnd - srcStart).toString());\n";
@@ -626,12 +654,12 @@ class JSONTransform extends Visitor {
                 }
                 else {
                     DESERIALIZE += " else { \n";
-                    DESERIALIZE += indent + '              srcStart += 2;\n';
-                    DESERIALIZE += indent + '              keyStart = 0;\n';
-                    DESERIALIZE += indent + '              break;\n';
+                    DESERIALIZE += indent + "              srcStart += 2;\n";
+                    DESERIALIZE += indent + "              keyStart = 0;\n";
+                    DESERIALIZE += indent + "              break;\n";
                     DESERIALIZE += indent + "            }\n";
                 }
-            }, true);
+            }, "boolean");
             DESERIALIZE += "        }";
             DESERIALIZE += " else {\n";
             DESERIALIZE += "          throw new Error(\"Expected to find 'false' but found '\" + JSON.Util.ptrToStr(lastIndex, srcStart) + \"' instead at position \" + (srcEnd - srcStart).toString());\n";
@@ -639,7 +667,7 @@ class JSONTransform extends Visitor {
             DESERIALIZE += "\n      }";
             mbElse = " else ";
         }
-        if (sortedMembers.null.length) {
+        if (!STRICT || sortedMembers.null.length) {
             DESERIALIZE += mbElse + "if (code == 110) {\n";
             DESERIALIZE += "        if (load<u64>(srcStart) == 30399761348886638) {\n";
             DESERIALIZE += "          srcStart += 8;\n";
@@ -683,12 +711,12 @@ class JSONTransform extends Visitor {
                 }
                 else {
                     DESERIALIZE += " else { \n";
-                    DESERIALIZE += indent + '              srcStart += 2;\n';
-                    DESERIALIZE += indent + '              keyStart = 0;\n';
-                    DESERIALIZE += indent + '              break;\n';
+                    DESERIALIZE += indent + "              srcStart += 2;\n";
+                    DESERIALIZE += indent + "              keyStart = 0;\n";
+                    DESERIALIZE += indent + "              break;\n";
                     DESERIALIZE += indent + "            }\n";
                 }
-            }, true);
+            }, "null");
             DESERIALIZE += "        }";
             DESERIALIZE += "\n      }";
             mbElse = " else ";

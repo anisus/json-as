@@ -55,11 +55,7 @@ export function toString(node: Node): string {
   return ASTBuilder.build(node);
 }
 
-export function replaceRef(
-  node: Node,
-  replacement: Node | Node[],
-  ref: Node | Node[] | null,
-): void {
+export function replaceRef(node: Node, replacement: Node | Node[], ref: Node | Node[] | null): void {
   if (!node || !ref) return;
   const nodeExpr = stripExpr(node);
 
@@ -77,8 +73,7 @@ export function replaceRef(
       if (Array.isArray(current)) {
         for (let i = 0; i < current.length; i++) {
           if (stripExpr(current[i]) === nodeExpr) {
-            if (Array.isArray(replacement))
-              current.splice(i, 1, ...replacement);
+            if (Array.isArray(replacement)) current.splice(i, 1, ...replacement);
             else current.splice(i, 1, replacement);
             return;
           }
@@ -91,17 +86,11 @@ export function replaceRef(
   }
 }
 
-export function cloneNode(
-  input: Node | Node[] | null,
-  seen = new WeakMap(),
-  path = "",
-): Node | Node[] | null {
+export function cloneNode(input: Node | Node[] | null, seen = new WeakMap(), path = ""): Node | Node[] | null {
   if (input === null || typeof input !== "object") return input;
 
   if (Array.isArray(input)) {
-    return input.map((item, index) =>
-      cloneNode(item, seen, `${path}[${index}]`),
-    ) as Node | Node[] | null;
+    return input.map((item, index) => cloneNode(item, seen, `${path}[${index}]`)) as Node | Node[] | null;
   }
 
   if (seen.has(input)) return seen.get(input);

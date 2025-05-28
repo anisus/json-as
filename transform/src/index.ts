@@ -1,11 +1,12 @@
 import { ClassDeclaration, FieldDeclaration, IdentifierExpression, Parser, Source, NodeKind, CommonFlags, ImportStatement, Node, Tokenizer, SourceKind, NamedTypeNode, Range, FEATURE_SIMD, FunctionExpression, MethodDeclaration, Statement, Program, Feature, CallExpression, PropertyAccessExpression } from "assemblyscript/dist/assemblyscript.js";
 import { Transform } from "assemblyscript/dist/transform.js";
 import { Visitor } from "./visitor.js";
-import { cloneNode, isStdlib, replaceRef, SimpleParser, toString } from "./util.js";
+import { cloneNode, isStdlib, removeExtension, replaceRef, SimpleParser, toString } from "./util.js";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { Property, PropertyFlags, Schema } from "./types.js";
-import { getClasses, getImportedClass } from "./linker.js";
+import { getClass, getClasses, getImportedClass } from "./linker.js";
+import { existsSync } from "fs";
 
 let indent = "  ";
 
@@ -47,7 +48,7 @@ class JSONTransform extends Visitor {
   static SN: JSONTransform = new JSONTransform();
 
   public program!: Program;
-  public baseDir!: string;
+  public baseCWD!: string;
   public parser!: Parser;
   public schemas: Schema[] = [];
   public schema!: Schema;
@@ -56,6 +57,8 @@ class JSONTransform extends Visitor {
 
   public topStatements: Statement[] = [];
   public simdStatements: string[] = [];
+
+  private visitedClasses: Set<string> = new Set<string>();
 
   visitClassDeclaration(node: ClassDeclaration): void {
     if (!node.decorators?.length) return;
@@ -68,11 +71,106 @@ class JSONTransform extends Visitor {
     )
       return;
 
-    this.schema = new Schema();
-    this.schema.node = node;
-    this.schema.name = node.name.text;
+    if (this.visitedClasses.has(node.range.source.internalPath + node.name.text)) return;
 
-    this.schemas.push(this.schema);
+    const members: FieldDeclaration[] = [...(node.members.filter((v) => v.kind === NodeKind.FieldDeclaration && v.flags !== CommonFlags.Static && v.flags !== CommonFlags.Private && v.flags !== CommonFlags.Protected && !v.decorators?.some((decorator) => (<IdentifierExpression>decorator.name).text === "omit")) as FieldDeclaration[])];
+    const serializers: MethodDeclaration[] = [...node.members.filter((v) => v.kind === NodeKind.MethodDeclaration && v.decorators && v.decorators.some((e) => (<IdentifierExpression>e.name).text.toLowerCase() === "serializer"))] as MethodDeclaration[];
+    const deserializers: MethodDeclaration[] = [...node.members.filter((v) => v.kind === NodeKind.MethodDeclaration && v.decorators && v.decorators.some((e) => (<IdentifierExpression>e.name).text.toLowerCase() === "deserializer"))] as MethodDeclaration[];
+
+    const schema = new Schema();
+    schema.node = node;
+    schema.name = node.name.text;
+
+    if (node.extendsType) {
+      const extendsName = node.extendsType?.name.identifier.text;
+      if (!schema.parent) {
+        const depSearch = schema.deps.find((v) => v.name == extendsName);
+        if (depSearch) {
+          if (DEBUG) console.log("Found " + extendsName + " in dependencies of " + node.range.source.internalPath);
+          schema.deps.push(depSearch);
+          schema.parent = depSearch
+        } else {
+          const internalSearch = getClass(extendsName, node.range.source);
+          if (internalSearch) {
+            if (DEBUG) console.log("Found " + extendsName + " internally from " + node.range.source.internalPath);
+            this.visitClassDeclaration(internalSearch);
+            schema.deps.push(this.schema);
+            schema.parent = this.schema;
+            this.schema = schema;
+          } else {
+            const externalSearch = getImportedClass(extendsName, node.range.source, this.parser);
+            if (externalSearch) {
+              if (DEBUG) console.log("Found " + externalSearch.name.text + " externally from " + node.range.source.internalPath);
+              this.visitClassDeclaration(externalSearch);
+              schema.deps.push(this.schema);
+              schema.parent = this.schema;
+              this.schema = schema;
+            }
+          }
+        }
+      }
+      if (schema.parent?.members) {
+        for (let i = schema.parent.members.length - 1; i >= 0; i--) {
+          const replace = schema.members.find((v) => v.name == schema.parent?.members[i]?.name);
+          if (!replace) {
+            members.unshift(schema.parent?.members[i]!.node);
+          }
+        }
+      }
+    }
+
+    const getUnknownTypes = (type: string, types: string[] = []): string[] => {
+      type = stripNull(type);
+      if (type.startsWith("Array<")) {
+        return getUnknownTypes(type.slice(6, -1));
+      } else if (type.startsWith("Map<")) {
+        const parts = type.slice(4, -1).split(",");
+        return getUnknownTypes(parts[0]) || getUnknownTypes(parts[1]);
+      } else if (isString(type) || isPrimitive(type)) {
+        return types;
+      } else if (["JSON.Box", "JSON.Obj", "JSON.Value", "JSON.Raw"].includes(type)) {
+        return types;
+      } else if (node.isGeneric && node.typeParameters.some((p) => p.name.text == type)) {
+        return types;
+      } else if (type == node.name.text) {
+        return types;
+      }
+      types.push(type);
+      return types;
+    }
+
+    for (const member of members) {
+      const type = toString(member.type);
+      const unknown = getUnknownTypes(type);
+
+      for (const unknownType of unknown) {
+        const depSearch = schema.deps.find((v) => v.name == unknownType);
+        if (depSearch) {
+          if (DEBUG) console.log("Found " + unknownType + " in dependencies of " + node.range.source.internalPath);
+          schema.deps.push(depSearch);
+          continue;
+        }
+        const internalSearch = getClass(unknownType, node.range.source);
+        if (internalSearch) {
+          if (DEBUG) console.log("Found " + unknownType + " internally from " + node.range.source.internalPath);
+          this.visitClassDeclaration(internalSearch);
+          schema.deps.push(this.schema);
+          this.schema = schema;
+        } else {
+          const externalSearch = getImportedClass(unknownType, node.range.source, this.parser);
+          if (externalSearch) {
+            if (DEBUG) console.log("Found " + externalSearch.name.text + " externally from " + node.range.source.internalPath);
+            this.visitClassDeclaration(externalSearch);
+            schema.deps.push(this.schema);
+            this.schema = schema;
+          }
+        }
+      }
+    }
+
+    this.schemas.push(schema);
+    this.schema = schema;
+    this.visitedClasses.add(node.range.source.internalPath + node.name.text);
 
     let SERIALIZE = "__SERIALIZE(ptr: usize): void {\n";
     let INITIALIZE = "@inline __INITIALIZE(): this {\n";
@@ -80,11 +178,7 @@ class JSONTransform extends Visitor {
     let DESERIALIZE_CUSTOM = "";
     let SERIALIZE_CUSTOM = "";
 
-    if (DEBUG) console.log("Created schema: " + this.schema.name + " in file " + node.range.source.normalizedPath);
-
-    const members: FieldDeclaration[] = [...(node.members.filter((v) => v.kind === NodeKind.FieldDeclaration && v.flags !== CommonFlags.Static && v.flags !== CommonFlags.Private && v.flags !== CommonFlags.Protected && !v.decorators?.some((decorator) => (<IdentifierExpression>decorator.name).text === "omit")) as FieldDeclaration[])];
-    const serializers: MethodDeclaration[] = [...node.members.filter((v) => v.kind === NodeKind.MethodDeclaration && v.decorators && v.decorators.some((e) => (<IdentifierExpression>e.name).text.toLowerCase() === "serializer"))] as MethodDeclaration[];
-    const deserializers: MethodDeclaration[] = [...node.members.filter((v) => v.kind === NodeKind.MethodDeclaration && v.decorators && v.decorators.some((e) => (<IdentifierExpression>e.name).text.toLowerCase() === "deserializer"))] as MethodDeclaration[];
+    if (DEBUG) console.log("Created schema: " + this.schema.name + " in file " + node.range.source.normalizedPath + (this.schema.deps.length ? " with dependencies:\n  " + this.schema.deps.map((v) => v.name).join("\n  ") : ""));
 
     if (serializers.length > 1) throwError("Multiple serializers detected for class " + node.name.text + " but schemas can only have one serializer!", serializers[1].range);
     if (deserializers.length > 1) throwError("Multiple deserializers detected for class " + node.name.text + " but schemas can only have one deserializer!", deserializers[1].range);
@@ -130,42 +224,12 @@ class JSONTransform extends Visitor {
       DESERIALIZE_CUSTOM += "  }\n";
     }
 
-    if (node.extendsType) {
-      const extendsName = node.extendsType?.name.identifier.text;
-      this.schema.parent = this.schemas.find((v) => v.name == extendsName) as Schema | null;
-      if (!this.schema.parent) {
-        const internalSearch = getClasses(node.range.source).find((v) => v.name.text == extendsName);
-        if (internalSearch) {
-          if (DEBUG) console.log("Found " + extendsName + " internally");
-          this.visitClassDeclaration(internalSearch);
-          this.visitClassDeclaration(node);
-          return;
-        }
-
-        const externalSearch = getImportedClass(extendsName, node.range.source, this.parser);
-        if (externalSearch) {
-          if (DEBUG) console.log("Found " + extendsName + " externally");
-          this.visitClassDeclaration(externalSearch);
-          this.visitClassDeclaration(node);
-          return;
-        }
-      }
-      if (this.schema.parent?.members) {
-        for (let i = this.schema.parent.members.length - 1; i >= 0; i--) {
-          const replace = this.schema.members.find((v) => v.name == this.schema.parent?.members[i]?.name);
-          if (!replace) {
-            members.unshift(this.schema.parent?.members[i]!.node);
-          }
-        }
-      }
-    }
-
     if (!members.length) {
       this.generateEmptyMethods(node);
       return;
     }
 
-    this.addRequiredImports(node.range.source);
+    this.addImports(node.range.source);
 
     for (const member of members) {
       if (!member.type) throwError("Fields must be strongly typed", node.range);
@@ -932,39 +996,104 @@ class JSONTransform extends Visitor {
     this.imports = [];
     super.visitSource(node);
   }
-  addRequiredImports(node: Source): void {
-    const filePath = fileURLToPath(import.meta.url);
-    const baseDir = path.resolve(filePath, "..", "..", "..");
-    const nodePath = path.resolve(this.baseDir, node.range.source.normalizedPath);
+  addImports(node: Source): void {
+    const baseDir = path.resolve(
+      fileURLToPath(import.meta.url),
+      "..",
+      "..",
+      "..",
+    );
+    const pkgPath = path.join(this.baseCWD, "node_modules");
+    const isLibrary = existsSync(path.join(pkgPath, "json-as"));
+    let fromPath = node.range.source.normalizedPath;
+
+    fromPath = fromPath.startsWith("~lib/")
+      ? existsSync(
+        path.join(pkgPath, fromPath.slice(5, fromPath.indexOf("/", 5))),
+      )
+        ? path.join(pkgPath, fromPath.slice(5))
+        : fromPath
+      : path.join(baseDir, fromPath);
 
     const bsImport = this.imports.find((i) => i.declarations?.find((d) => d.foreignName.text == "bs" || d.name.text == "bs"));
     const jsonImport = this.imports.find((i) => i.declarations?.find((d) => d.foreignName.text == "JSON" || d.name.text == "JSON"));
 
-    let bsPath = path.posix.join(...path.relative(path.dirname(nodePath), path.join(baseDir, "lib", "as-bs")).split(path.sep)).replace(/^.*node_modules\/json-as/, "json-as");
+    let bsRel = removeExtension(
+      path.posix.join(
+        ...path
+          .relative(path.dirname(fromPath), path.join(baseDir, "lib", "as-bs"))
+          .split(path.sep),
+      ),
+    );
 
-    let jsonPath = path.posix.join(...path.relative(path.dirname(nodePath), path.join(baseDir, "assembly", "index.ts")).split(path.sep)).replace(/^.*node_modules\/json-as/, "json-as");
+    let jsRel = removeExtension(
+      path.posix.join(
+        ...path
+          .relative(path.dirname(fromPath), path.join(baseDir, "assembly", "index"))
+          .split(path.sep),
+      ),
+    );
+
+    if (bsRel.includes("node_modules" + path.sep + "json-as")) {
+      bsRel =
+        "json-as" +
+        bsRel.slice(
+          bsRel.indexOf("node_modules" + path.sep + "json-as") + 20,
+        )
+    } else if (
+      !bsRel.startsWith(".") &&
+      !bsRel.startsWith("/") &&
+      !bsRel.startsWith("json-as")
+    ) {
+      bsRel = "./" + bsRel;
+    }
+
+    if (jsRel.includes("node_modules" + path.sep + "json-as")) {
+      jsRel =
+        "json-as" +
+        jsRel.slice(
+          jsRel.indexOf("node_modules" + path.sep + "json-as") + 20,
+        );
+    } else if (
+      !jsRel.startsWith(".") &&
+      !jsRel.startsWith("/") &&
+      !jsRel.startsWith("json-as")
+    ) {
+      jsRel = "./" + jsRel;
+    }
 
     if (!bsImport) {
-      if (node.normalizedPath.startsWith("~")) {
-        bsPath = "json-as/lib/as-bs";
-      }
-
-      const replaceNode = Node.createImportStatement([Node.createImportDeclaration(Node.createIdentifierExpression("bs", node.range, false), null, node.range)], Node.createStringLiteralExpression(bsPath, node.range), node.range);
+      const replaceNode = Node.createImportStatement(
+        [Node.createImportDeclaration(
+          Node.createIdentifierExpression("bs", node.range, false),
+          null,
+          node.range
+        )
+        ],
+        Node.createStringLiteralExpression(bsRel, node.range),
+        node.range
+      );
       this.topStatements.push(replaceNode);
-      if (DEBUG) console.log("Added as-bs import: " + toString(replaceNode) + "\n");
+      if (DEBUG) console.log("Added import: " + toString(replaceNode) + " to " + node.range.source.normalizedPath + "\n");
     }
 
     if (!jsonImport) {
-      if (node.normalizedPath.startsWith("~")) {
-        jsonPath = "json-as/assembly/index.ts";
-      }
       const replaceNode = Node.createImportStatement(
-        [Node.createImportDeclaration(Node.createIdentifierExpression("JSON", node.range, false), null, node.range)],
-        Node.createStringLiteralExpression(jsonPath, node.range), // Ensure POSIX-style path for 'assembly'
+        [Node.createImportDeclaration(
+          Node.createIdentifierExpression(
+            "JSON",
+            node.range,
+            false
+          ),
+          null,
+          node.range
+        )
+        ],
+        Node.createStringLiteralExpression(jsRel, node.range), // Ensure POSIX-style path for 'assembly'
         node.range,
       );
       this.topStatements.push(replaceNode);
-      if (DEBUG) console.log("Added json-as import: " + toString(replaceNode) + "\n");
+      if (DEBUG) console.log("Added import: " + toString(replaceNode) + " to " + node.range.source.normalizedPath + "\n");
     }
   }
 
@@ -1039,7 +1168,7 @@ export default class Transformer extends Transform {
         }
       });
 
-    transformer.baseDir = path.join(process.cwd(), this.baseDir);
+    transformer.baseCWD = path.join(process.cwd(), this.baseDir);
     transformer.program = this.program;
     transformer.parser = parser;
     for (const source of sources) {

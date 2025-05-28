@@ -1,5 +1,6 @@
 import { Parser, Tokenizer, Source } from "assemblyscript/dist/assemblyscript.js";
 import { ASTBuilder } from "./builder.js";
+import * as path from "path";
 export class SimpleParser {
     static get parser() {
         return new Parser();
@@ -112,5 +113,9 @@ export function stripExpr(node) {
     if (node.kind == 38)
         return node["expression"];
     return node;
+}
+export function removeExtension(filePath) {
+    const parsed = path.parse(filePath);
+    return path.join(parsed.dir, parsed.name);
 }
 //# sourceMappingURL=util.js.map

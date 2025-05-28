@@ -1,6 +1,7 @@
 // Taken from https://github.com/as-pect/visitor-as/blob/master/src/simpleParser.ts
 import { Parser, Tokenizer, Source, SourceKind, Expression, Statement, NamespaceDeclaration, ClassDeclaration, DeclarationStatement, Range, Node, NodeKind } from "assemblyscript/dist/assemblyscript.js";
 import { ASTBuilder } from "./builder.js";
+import * as path from "path";
 
 export class SimpleParser {
   private static get parser(): Parser {
@@ -119,4 +120,9 @@ export function stripExpr(node: Node): Node {
   if (!node) return node;
   if (node.kind == NodeKind.Expression) return node["expression"];
   return node;
+}
+
+export function removeExtension(filePath: string): string {
+  const parsed = path.parse(filePath);
+  return path.join(parsed.dir, parsed.name);
 }

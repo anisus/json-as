@@ -1,5 +1,11 @@
 # Change Log
 
+## 2025-05-27 - 1.1.10
+
+- feat: add more debug levels (1 = print transform code, 2 = print keys/values at runtime)
+- feat: add write out feature (`JSON_WRITE=path-to-file.ts`) which writes out generated code
+- fix: complete full parity between port and original version for correct deserialization of all types
+
 ## 2025-05-27 - 1.1.9
 
 - change: strict mode is disabled by default. Enable it with JSON_STRICT=true

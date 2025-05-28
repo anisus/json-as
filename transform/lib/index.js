@@ -6,8 +6,9 @@ import * as path from "path";
 import { fileURLToPath } from "url";
 import { Property, PropertyFlags, Schema } from "./types.js";
 import { getClass, getImportedClass } from "./linker.js";
-import { existsSync } from "fs";
+import { existsSync, writeFileSync } from "fs";
 let indent = "  ";
+const WRITE = process.env["JSON_WRITE"];
 const DEBUG = process.env["JSON_DEBUG"];
 const STRICT = process.env["JSON_STRICT"] && process.env["JSON_STRICT"] == "true";
 class CustomTransform extends Visitor {
@@ -229,7 +230,6 @@ class JSONTransform extends Visitor {
             this.generateEmptyMethods(node);
             return;
         }
-        this.addImports(node.range.source);
         for (const member of members) {
             if (!member.type)
                 throwError("Fields must be strongly typed", node.range);
@@ -894,14 +894,14 @@ class JSONTransform extends Visitor {
         if (!bsImport) {
             const replaceNode = Node.createImportStatement([Node.createImportDeclaration(Node.createIdentifierExpression("bs", node.range, false), null, node.range)
             ], Node.createStringLiteralExpression(bsRel, node.range), node.range);
-            this.topStatements.push(replaceNode);
+            node.range.source.statements.unshift(replaceNode);
             if (DEBUG)
                 console.log("Added import: " + toString(replaceNode) + " to " + node.range.source.normalizedPath + "\n");
         }
         if (!jsonImport) {
             const replaceNode = Node.createImportStatement([Node.createImportDeclaration(Node.createIdentifierExpression("JSON", node.range, false), null, node.range)
             ], Node.createStringLiteralExpression(jsRel, node.range), node.range);
-            this.topStatements.push(replaceNode);
+            node.range.source.statements.unshift(replaceNode);
             if (DEBUG)
                 console.log("Added import: " + toString(replaceNode) + " to " + node.range.source.normalizedPath + "\n");
         }
@@ -998,6 +998,12 @@ export default class Transformer extends Transform {
                     source.statements.unshift(SimpleParser.parseTopLevelStatement(simd));
             }
             transformer.simdStatements = [];
+            if (transformer.schemas.has(source.internalPath)) {
+                transformer.addImports(source);
+            }
+            if (source.normalizedPath == WRITE) {
+                writeFileSync(path.join(process.cwd(), this.baseDir, removeExtension(source.normalizedPath) + ".json.ts"), toString(source));
+            }
         }
     }
 }

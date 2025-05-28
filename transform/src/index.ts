@@ -6,10 +6,11 @@ import * as path from "path";
 import { fileURLToPath } from "url";
 import { Property, PropertyFlags, Schema } from "./types.js";
 import { getClass, getClasses, getImportedClass } from "./linker.js";
-import { existsSync } from "fs";
+import { existsSync, writeFileSync } from "fs";
 
 let indent = "  ";
 
+const WRITE = process.env["JSON_WRITE"];
 const DEBUG = process.env["JSON_DEBUG"];
 const STRICT = process.env["JSON_STRICT"] && process.env["JSON_STRICT"] == "true";
 
@@ -105,7 +106,7 @@ class JSONTransform extends Visitor {
               if (DEBUG) console.log("Found " + externalSearch.name.text + " externally from " + node.range.source.internalPath);
               this.visitClassDeclaration(externalSearch);
               schema.deps.push(this.schema);
-            this.schemas.get(node.range.source.internalPath).push(this.schema);
+              this.schemas.get(node.range.source.internalPath).push(this.schema);
               schema.parent = this.schema;
               this.schema = schema;
             }
@@ -157,7 +158,7 @@ class JSONTransform extends Visitor {
         if (internalSearch) {
           if (DEBUG) console.log("Found " + unknownType + " internally from " + node.range.source.internalPath);
           this.visitClassDeclaration(internalSearch);
-            this.schemas.get(node.range.source.internalPath).push(this.schema);
+          this.schemas.get(node.range.source.internalPath).push(this.schema);
           schema.deps.push(this.schema);
           this.schema = schema;
         } else {
@@ -233,8 +234,6 @@ class JSONTransform extends Visitor {
       this.generateEmptyMethods(node);
       return;
     }
-
-    this.addImports(node.range.source);
 
     for (const member of members) {
       if (!member.type) throwError("Fields must be strongly typed", node.range);
@@ -1066,7 +1065,7 @@ class JSONTransform extends Visitor {
         Node.createStringLiteralExpression(bsRel, node.range),
         node.range
       );
-      this.topStatements.push(replaceNode);
+      node.range.source.statements.unshift(replaceNode);
       if (DEBUG) console.log("Added import: " + toString(replaceNode) + " to " + node.range.source.normalizedPath + "\n");
     }
 
@@ -1085,7 +1084,7 @@ class JSONTransform extends Visitor {
         Node.createStringLiteralExpression(jsRel, node.range), // Ensure POSIX-style path for 'assembly'
         node.range,
       );
-      this.topStatements.push(replaceNode);
+      node.range.source.statements.unshift(replaceNode);
       if (DEBUG) console.log("Added import: " + toString(replaceNode) + " to " + node.range.source.normalizedPath + "\n");
     }
   }
@@ -1177,6 +1176,13 @@ export default class Transformer extends Transform {
         for (const simd of transformer.simdStatements) source.statements.unshift(SimpleParser.parseTopLevelStatement(simd));
       }
       transformer.simdStatements = [];
+
+      if (transformer.schemas.has(source.internalPath)) {
+        transformer.addImports(source);
+      }
+      if (source.normalizedPath == WRITE) {
+        writeFileSync(path.join(process.cwd(), this.baseDir, removeExtension(source.normalizedPath) + ".json.ts"), toString(source));
+      }
     }
   }
 }

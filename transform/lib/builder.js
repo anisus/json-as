@@ -36,6 +36,9 @@ export class ASTBuilder extends Visitor {
                 assert(false);
         }
     }
+    visitThisExpression(node, ref) {
+        this.sb.push("this");
+    }
     visitTypeName(node) {
         this.visitIdentifierExpression(node.identifier);
         var sb = this.sb;

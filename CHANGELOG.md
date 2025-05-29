@@ -1,5 +1,9 @@
 # Change Log
 
+## 2025-05-29 - 1.1.14
+
+- fix: hotfix schema resolver
+
 ## 2025-05-29 - 1.1.13
 
 - fix: small issues with schema linking

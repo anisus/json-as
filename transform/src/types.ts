@@ -15,6 +15,7 @@ export class Property {
   public flags: Map<PropertyFlags, Expression | null> = new Map<PropertyFlags, Expression | null>();
   public node!: FieldDeclaration;
   public byteSize: number = 0;
+  public generic: boolean = false;
 }
 
 export class Schema {

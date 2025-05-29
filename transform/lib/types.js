@@ -13,6 +13,7 @@ export class Property {
     flags = new Map();
     node;
     byteSize = 0;
+    generic = false;
 }
 export class Schema {
     static = true;

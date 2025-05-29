@@ -1,6 +1,11 @@
 # Change Log
 
-## 2025-05-29 - 1.1.2
+## 2025-05-29 - 1.1.13
+
+- fix: small issues with schema linking
+- tests: add tests for schema linking and discovery
+
+## 2025-05-29 - 1.1.12
 
 - fix: add helpful warning on unknown or unaccessible types in fields
 - feat: support deserialization of class generics

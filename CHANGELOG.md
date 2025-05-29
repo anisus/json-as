@@ -1,6 +1,13 @@
 # Change Log
 
-## 2025-05-27 - 1.1.10
+## 2025-05-28 - 1.1.11
+
+- fix: class resolving should only search top level statements for class declarations
+- fix: add helpful error if class is missing an @json decorator
+- fix: properly calculate relative path when json-as is a library
+- fix: add proper null check when resolving imported classes
+
+## 2025-05-28 - 1.1.10
 
 - feat: add more debug levels (1 = print transform code, 2 = print keys/values at runtime)
 - feat: add write out feature (`JSON_WRITE=path-to-file.ts`) which writes out generated code

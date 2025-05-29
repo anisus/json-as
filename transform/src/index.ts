@@ -72,6 +72,16 @@ class JSONTransform extends Visitor {
 
   private visitedClasses: Set<string> = new Set<string>();
 
+  visitClassDeclarationRef(node: ClassDeclaration): void {
+    if (
+      !node.decorators?.length ||
+      !node.decorators.some((decorator) => {
+        const name = (<IdentifierExpression>decorator.name).text;
+        return name === "json" || name === "serializable";
+      })
+    ) throw new Error("Class " + node.name.text + " is missing an @json or @serializable decorator in " + node.range.source.internalPath);
+    this.visitClassDeclaration(node);
+  }
   visitClassDeclaration(node: ClassDeclaration): void {
     if (!node.decorators?.length) return;
 
@@ -107,7 +117,7 @@ class JSONTransform extends Visitor {
           if (internalSearch) {
             if (DEBUG > 0) console.log("Found " + extendsName + " internally from " + node.range.source.internalPath);
             if (!this.visitedClasses.has(internalSearch.range.source.internalPath + internalSearch.name.text)) {
-              this.visitClassDeclaration(internalSearch);
+              this.visitClassDeclarationRef(internalSearch);
               this.schemas.get(internalSearch.range.source.internalPath).push(this.schema);
               this.visitClassDeclaration(node);
               return;
@@ -121,7 +131,7 @@ class JSONTransform extends Visitor {
             if (externalSearch) {
               if (DEBUG > 0) console.log("Found " + externalSearch.name.text + " externally from " + node.range.source.internalPath);
               if (!this.visitedClasses.has(externalSearch.range.source.internalPath + externalSearch.name.text)) {
-                this.visitClassDeclaration(externalSearch);
+                this.visitClassDeclarationRef(externalSearch);
                 this.schemas.get(externalSearch.range.source.internalPath).push(this.schema);
                 this.visitClassDeclaration(node);
                 return;
@@ -171,14 +181,14 @@ class JSONTransform extends Visitor {
       for (const unknownType of unknown) {
         const depSearch = schema.deps.find((v) => v.name == unknownType);
         if (depSearch) {
-          if (DEBUG > 0) console.log("Found " + unknownType + " in dependencies of " + node.range.source.internalPath);
+          console.log("Found " + unknownType + " in dependencies of " + node.range.source.internalPath);
           if (!schema.deps.some(v => v.name == depSearch.name)) schema.deps.push(depSearch);
         } else {
           const internalSearch = getClass(unknownType, node.range.source);
           if (internalSearch) {
-            if (DEBUG > 0) console.log("Found " + unknownType + " internally from " + node.range.source.internalPath);
+             console.log("Found " + unknownType + " internally from " + node.range.source.internalPath);
             if (!this.visitedClasses.has(internalSearch.range.source.internalPath + internalSearch.name.text)) {
-              this.visitClassDeclaration(internalSearch);
+              this.visitClassDeclarationRef(internalSearch);
               this.schemas.get(internalSearch.range.source.internalPath).push(this.schema);
               this.visitClassDeclaration(node);
               return;
@@ -189,9 +199,9 @@ class JSONTransform extends Visitor {
           } else {
             const externalSearch = getImportedClass(unknownType, node.range.source, this.parser);
             if (externalSearch) {
-              if (DEBUG > 0) console.log("Found " + externalSearch.name.text + " externally from " + node.range.source.internalPath);
+              console.log("Found " + externalSearch.name.text + " externally from " + node.range.source.internalPath);
               if (!this.visitedClasses.has(externalSearch.range.source.internalPath + externalSearch.name.text)) {
-                this.visitClassDeclaration(externalSearch);
+                this.visitClassDeclarationRef(externalSearch);
                 this.schemas.get(externalSearch.range.source.internalPath).push(this.schema);
                 this.visitClassDeclaration(node);
                 return;

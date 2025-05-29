@@ -709,7 +709,6 @@ class JSONTransform extends Visitor {
       // DESERIALIZE += "          console.log(JSON.Util.ptrToStr(keyStart,keyEnd) + \" = \" + load<u16>(keyStart).toString() + \" val \" + JSON.Util.ptrToStr(lastIndex, srcStart));\n";
 
       generateGroups(sortedMembers.number, (group) => {
-        console.log("Group: ", group.map((m) => m.name));
         generateConsts(group);
         const first = group[0];
         const fName = first.alias || first.name;

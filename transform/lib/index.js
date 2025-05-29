@@ -85,7 +85,8 @@ class JSONTransform extends Visitor {
                 if (depSearch) {
                     if (DEBUG > 0)
                         console.log("Found " + extendsName + " in dependencies of " + node.range.source.internalPath);
-                    schema.deps.push(depSearch);
+                    if (!schema.deps.some(v => v.name == depSearch.name))
+                        schema.deps.push(depSearch);
                     schema.parent = depSearch;
                 }
                 else {
@@ -93,22 +94,34 @@ class JSONTransform extends Visitor {
                     if (internalSearch) {
                         if (DEBUG > 0)
                             console.log("Found " + extendsName + " internally from " + node.range.source.internalPath);
-                        this.visitClassDeclaration(internalSearch);
-                        schema.deps.push(this.schema);
-                        this.schemas.get(node.range.source.internalPath).push(this.schema);
-                        schema.parent = this.schema;
-                        this.schema = schema;
+                        if (!this.visitedClasses.has(internalSearch.range.source.internalPath + internalSearch.name.text)) {
+                            this.visitClassDeclaration(internalSearch);
+                            this.schemas.get(internalSearch.range.source.internalPath).push(this.schema);
+                            this.visitClassDeclaration(node);
+                            return;
+                        }
+                        const schem = this.schemas.get(internalSearch.range.source.internalPath)?.find(s => s.name == internalSearch.name.text);
+                        if (!schem)
+                            throw new Error("Could not find schema for " + internalSearch.name.text + " in " + internalSearch.range.source.internalPath);
+                        schema.deps.push(schem);
+                        schema.parent = schem;
                     }
                     else {
                         const externalSearch = getImportedClass(extendsName, node.range.source, this.parser);
                         if (externalSearch) {
                             if (DEBUG > 0)
                                 console.log("Found " + externalSearch.name.text + " externally from " + node.range.source.internalPath);
-                            this.visitClassDeclaration(externalSearch);
-                            schema.deps.push(this.schema);
-                            this.schemas.get(node.range.source.internalPath).push(this.schema);
-                            schema.parent = this.schema;
-                            this.schema = schema;
+                            if (!this.visitedClasses.has(externalSearch.range.source.internalPath + externalSearch.name.text)) {
+                                this.visitClassDeclaration(externalSearch);
+                                this.schemas.get(externalSearch.range.source.internalPath).push(this.schema);
+                                this.visitClassDeclaration(node);
+                                return;
+                            }
+                            const schem = this.schemas.get(externalSearch.range.source.internalPath)?.find(s => s.name == externalSearch.name.text);
+                            if (!schem)
+                                throw new Error("Could not find schema for " + externalSearch.name.text + " in " + externalSearch.range.source.internalPath);
+                            schema.deps.push(schem);
+                            schema.parent = schem;
                         }
                     }
                 }
@@ -154,27 +167,41 @@ class JSONTransform extends Visitor {
                 if (depSearch) {
                     if (DEBUG > 0)
                         console.log("Found " + unknownType + " in dependencies of " + node.range.source.internalPath);
-                    schema.deps.push(depSearch);
-                    continue;
-                }
-                const internalSearch = getClass(unknownType, node.range.source);
-                if (internalSearch) {
-                    if (DEBUG > 0)
-                        console.log("Found " + unknownType + " internally from " + node.range.source.internalPath);
-                    this.visitClassDeclaration(internalSearch);
-                    this.schemas.get(node.range.source.internalPath).push(this.schema);
-                    schema.deps.push(this.schema);
-                    this.schema = schema;
+                    if (!schema.deps.some(v => v.name == depSearch.name))
+                        schema.deps.push(depSearch);
                 }
                 else {
-                    const externalSearch = getImportedClass(unknownType, node.range.source, this.parser);
-                    if (externalSearch) {
+                    const internalSearch = getClass(unknownType, node.range.source);
+                    if (internalSearch) {
                         if (DEBUG > 0)
-                            console.log("Found " + externalSearch.name.text + " externally from " + node.range.source.internalPath);
-                        this.visitClassDeclaration(externalSearch);
-                        this.schemas.get(node.range.source.internalPath).push(this.schema);
-                        schema.deps.push(this.schema);
-                        this.schema = schema;
+                            console.log("Found " + unknownType + " internally from " + node.range.source.internalPath);
+                        if (!this.visitedClasses.has(internalSearch.range.source.internalPath + internalSearch.name.text)) {
+                            this.visitClassDeclaration(internalSearch);
+                            this.schemas.get(internalSearch.range.source.internalPath).push(this.schema);
+                            this.visitClassDeclaration(node);
+                            return;
+                        }
+                        const schem = this.schemas.get(internalSearch.range.source.internalPath)?.find(s => s.name == internalSearch.name.text);
+                        if (!schem)
+                            throw new Error("Could not find schema for " + internalSearch.name.text + " in " + internalSearch.range.source.internalPath);
+                        schema.deps.push(schem);
+                    }
+                    else {
+                        const externalSearch = getImportedClass(unknownType, node.range.source, this.parser);
+                        if (externalSearch) {
+                            if (DEBUG > 0)
+                                console.log("Found " + externalSearch.name.text + " externally from " + node.range.source.internalPath);
+                            if (!this.visitedClasses.has(externalSearch.range.source.internalPath + externalSearch.name.text)) {
+                                this.visitClassDeclaration(externalSearch);
+                                this.schemas.get(externalSearch.range.source.internalPath).push(this.schema);
+                                this.visitClassDeclaration(node);
+                                return;
+                            }
+                            const schem = this.schemas.get(externalSearch.range.source.internalPath)?.find(s => s.name == externalSearch.name.text);
+                            if (!schem)
+                                throw new Error("Could not find schema for " + externalSearch.name.text + " in " + externalSearch.range.source.internalPath);
+                            schema.deps.push(schem);
+                        }
                     }
                 }
             }
@@ -936,7 +963,7 @@ class JSONTransform extends Visitor {
             ? existsSync(path.join(pkgPath, fromPath.slice(5, fromPath.indexOf("/", 5))))
                 ? path.join(pkgPath, fromPath.slice(5))
                 : fromPath
-            : path.join(baseDir, fromPath);
+            : path.join(this.baseCWD, fromPath);
         const bsImport = this.imports.find((i) => i.declarations?.find((d) => d.foreignName.text == "bs" || d.name.text == "bs"));
         const jsonImport = this.imports.find((i) => i.declarations?.find((d) => d.foreignName.text == "JSON" || d.name.text == "JSON"));
         let bsRel = removeExtension(path.posix.join(...path

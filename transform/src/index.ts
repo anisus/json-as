@@ -100,26 +100,36 @@ class JSONTransform extends Visitor {
         const depSearch = schema.deps.find((v) => v.name == extendsName);
         if (depSearch) {
           if (DEBUG > 0) console.log("Found " + extendsName + " in dependencies of " + node.range.source.internalPath);
-          schema.deps.push(depSearch);
-          schema.parent = depSearch
+          if (!schema.deps.some(v => v.name == depSearch.name)) schema.deps.push(depSearch);
+          schema.parent = depSearch;
         } else {
           const internalSearch = getClass(extendsName, node.range.source);
           if (internalSearch) {
             if (DEBUG > 0) console.log("Found " + extendsName + " internally from " + node.range.source.internalPath);
-            this.visitClassDeclaration(internalSearch);
-            schema.deps.push(this.schema);
-            this.schemas.get(node.range.source.internalPath).push(this.schema);
-            schema.parent = this.schema;
-            this.schema = schema;
+            if (!this.visitedClasses.has(internalSearch.range.source.internalPath + internalSearch.name.text)) {
+              this.visitClassDeclaration(internalSearch);
+              this.schemas.get(internalSearch.range.source.internalPath).push(this.schema);
+              this.visitClassDeclaration(node);
+              return;
+            }
+            const schem = this.schemas.get(internalSearch.range.source.internalPath)?.find(s => s.name == internalSearch.name.text);
+            if (!schem) throw new Error("Could not find schema for " + internalSearch.name.text + " in " + internalSearch.range.source.internalPath);
+            schema.deps.push(schem);
+            schema.parent = schem;
           } else {
             const externalSearch = getImportedClass(extendsName, node.range.source, this.parser);
             if (externalSearch) {
               if (DEBUG > 0) console.log("Found " + externalSearch.name.text + " externally from " + node.range.source.internalPath);
-              this.visitClassDeclaration(externalSearch);
-              schema.deps.push(this.schema);
-              this.schemas.get(node.range.source.internalPath).push(this.schema);
-              schema.parent = this.schema;
-              this.schema = schema;
+              if (!this.visitedClasses.has(externalSearch.range.source.internalPath + externalSearch.name.text)) {
+                this.visitClassDeclaration(externalSearch);
+                this.schemas.get(externalSearch.range.source.internalPath).push(this.schema);
+                this.visitClassDeclaration(node);
+                return;
+              }
+              const schem = this.schemas.get(externalSearch.range.source.internalPath)?.find(s => s.name == externalSearch.name.text);
+              if (!schem) throw new Error("Could not find schema for " + externalSearch.name.text + " in " + externalSearch.range.source.internalPath);
+              schema.deps.push(schem);
+              schema.parent = schem;
             }
           }
         }
@@ -162,24 +172,34 @@ class JSONTransform extends Visitor {
         const depSearch = schema.deps.find((v) => v.name == unknownType);
         if (depSearch) {
           if (DEBUG > 0) console.log("Found " + unknownType + " in dependencies of " + node.range.source.internalPath);
-          schema.deps.push(depSearch);
-          continue;
-        }
-        const internalSearch = getClass(unknownType, node.range.source);
-        if (internalSearch) {
-          if (DEBUG > 0) console.log("Found " + unknownType + " internally from " + node.range.source.internalPath);
-          this.visitClassDeclaration(internalSearch);
-          this.schemas.get(node.range.source.internalPath).push(this.schema);
-          schema.deps.push(this.schema);
-          this.schema = schema;
+          if (!schema.deps.some(v => v.name == depSearch.name)) schema.deps.push(depSearch);
         } else {
-          const externalSearch = getImportedClass(unknownType, node.range.source, this.parser);
-          if (externalSearch) {
-            if (DEBUG > 0) console.log("Found " + externalSearch.name.text + " externally from " + node.range.source.internalPath);
-            this.visitClassDeclaration(externalSearch);
-            this.schemas.get(node.range.source.internalPath).push(this.schema);
-            schema.deps.push(this.schema);
-            this.schema = schema;
+          const internalSearch = getClass(unknownType, node.range.source);
+          if (internalSearch) {
+            if (DEBUG > 0) console.log("Found " + unknownType + " internally from " + node.range.source.internalPath);
+            if (!this.visitedClasses.has(internalSearch.range.source.internalPath + internalSearch.name.text)) {
+              this.visitClassDeclaration(internalSearch);
+              this.schemas.get(internalSearch.range.source.internalPath).push(this.schema);
+              this.visitClassDeclaration(node);
+              return;
+            }
+            const schem = this.schemas.get(internalSearch.range.source.internalPath)?.find(s => s.name == internalSearch.name.text);
+            if (!schem) throw new Error("Could not find schema for " + internalSearch.name.text + " in " + internalSearch.range.source.internalPath);
+            schema.deps.push(schem);
+          } else {
+            const externalSearch = getImportedClass(unknownType, node.range.source, this.parser);
+            if (externalSearch) {
+              if (DEBUG > 0) console.log("Found " + externalSearch.name.text + " externally from " + node.range.source.internalPath);
+              if (!this.visitedClasses.has(externalSearch.range.source.internalPath + externalSearch.name.text)) {
+                this.visitClassDeclaration(externalSearch);
+                this.schemas.get(externalSearch.range.source.internalPath).push(this.schema);
+                this.visitClassDeclaration(node);
+                return;
+              }
+              const schem = this.schemas.get(externalSearch.range.source.internalPath)?.find(s => s.name == externalSearch.name.text);
+              if (!schem) throw new Error("Could not find schema for " + externalSearch.name.text + " in " + externalSearch.range.source.internalPath);
+              schema.deps.push(schem);
+            }
           }
         }
       }
@@ -599,7 +619,7 @@ class JSONTransform extends Visitor {
       DESERIALIZE += "          while (srcStart < srcEnd) {\n";
       DESERIALIZE += "            const code = load<u16>(srcStart);\n";
       DESERIALIZE += "            if (code == 34 && load<u16>(srcStart - 2) !== 92) {\n";
-      if (DEBUG > 1)DESERIALIZE += "              console.log(\"Value (string, " + (++id) + "): \" + JSON.Util.ptrToStr(lastIndex, srcStart + 2));";
+      if (DEBUG > 1) DESERIALIZE += "              console.log(\"Value (string, " + (++id) + "): \" + JSON.Util.ptrToStr(lastIndex, srcStart + 2));";
       generateGroups(sortedMembers.string, (group) => {
         generateConsts(group);
         const first = group[0];
@@ -611,7 +631,7 @@ class JSONTransform extends Visitor {
         DESERIALIZE += indent + "              break;\n";
         DESERIALIZE += indent + "            }";
 
-        for (let i = 1; i <group.length; i++) {
+        for (let i = 1; i < group.length; i++) {
           const mem = group[i];
           const memName = mem.alias || mem.name;
           DESERIALIZE += indent + " else if (" + getComparision(memName) + ") { // " + memName + "\n";
@@ -813,39 +833,39 @@ class JSONTransform extends Visitor {
       DESERIALIZE += "          srcStart += 8;\n";
       if (DEBUG > 1) DESERIALIZE += "              console.log(\"Value (bool, " + (++id) + "): \" + JSON.Util.ptrToStr(lastIndex, srcStart - 8));";
       generateGroups(sortedMembers.boolean, (group) => {
-          generateConsts(group);
+        generateConsts(group);
         const first = group[0];
-          const fName =first.alias || first.name;
-          DESERIALIZE += indent + "          if (" + getComparision(fName) + ") { // " + fName + "\n";
-          DESERIALIZE += indent + "            store<" + first.type + ">(changetype<usize>(out), true, offsetof<this>(" + JSON.stringify(first.name) + "));\n";
+        const fName = first.alias || first.name;
+        DESERIALIZE += indent + "          if (" + getComparision(fName) + ") { // " + fName + "\n";
+        DESERIALIZE += indent + "            store<" + first.type + ">(changetype<usize>(out), true, offsetof<this>(" + JSON.stringify(first.name) + "));\n";
+        DESERIALIZE += indent + "            srcStart += 2;\n";
+        DESERIALIZE += indent + "            keyStart = 0;\n";
+        DESERIALIZE += indent + "            break;\n";
+        DESERIALIZE += indent + "          }";
+
+        for (let i = 1; i < group.length; i++) {
+          const mem = group[i];
+          const memName = mem.alias || mem.name;
+          DESERIALIZE += indent + " else if (" + getComparision(memName) + ") { // " + memName + "\n";
+          DESERIALIZE += indent + "            store<" + mem.type + ">(changetype<usize>(out), true, offsetof<this>(" + JSON.stringify(mem.name) + "));\n";
           DESERIALIZE += indent + "            srcStart += 2;\n";
           DESERIALIZE += indent + "            keyStart = 0;\n";
           DESERIALIZE += indent + "            break;\n";
           DESERIALIZE += indent + "          }";
+        }
 
-          for (let i = 1; i < group.length; i++) {
-            const mem = group[i];
-            const memName = mem.alias || mem.name;
-            DESERIALIZE += indent + " else if (" + getComparision(memName) + ") { // " + memName + "\n";
-            DESERIALIZE += indent + "            store<" + mem.type + ">(changetype<usize>(out), true, offsetof<this>(" + JSON.stringify(mem.name) + "));\n";
-            DESERIALIZE += indent + "            srcStart += 2;\n";
-            DESERIALIZE += indent + "            keyStart = 0;\n";
-            DESERIALIZE += indent + "            break;\n";
-            DESERIALIZE += indent + "          }";
-          }
-
-          if (STRICT) {
-            DESERIALIZE += " else {\n";
-            DESERIALIZE += indent + '            throw new Error("Unexpected key value pair in JSON object \'" + JSON.Util.ptrToStr(keyStart, keyEnd) + ":" + JSON.Util.ptrToStr(lastIndex, srcStart) + "\' at position " + (srcEnd - srcStart).toString());\n';
-            DESERIALIZE += indent + "          }\n";
-          } else {
-            DESERIALIZE += " else { \n";
-            DESERIALIZE += indent + "              srcStart += 2;\n";
-            DESERIALIZE += indent + "              keyStart = 0;\n";
-            DESERIALIZE += indent + "              break;\n";
-            DESERIALIZE += indent + "            }\n";
-          }
-        },
+        if (STRICT) {
+          DESERIALIZE += " else {\n";
+          DESERIALIZE += indent + '            throw new Error("Unexpected key value pair in JSON object \'" + JSON.Util.ptrToStr(keyStart, keyEnd) + ":" + JSON.Util.ptrToStr(lastIndex, srcStart) + "\' at position " + (srcEnd - srcStart).toString());\n';
+          DESERIALIZE += indent + "          }\n";
+        } else {
+          DESERIALIZE += " else { \n";
+          DESERIALIZE += indent + "              srcStart += 2;\n";
+          DESERIALIZE += indent + "              keyStart = 0;\n";
+          DESERIALIZE += indent + "              break;\n";
+          DESERIALIZE += indent + "            }\n";
+        }
+      },
         "boolean",
       );
 
@@ -863,41 +883,41 @@ class JSONTransform extends Visitor {
       DESERIALIZE += "        if (load<u64>(srcStart, 2) == 28429466576093281) {\n";
       DESERIALIZE += "          srcStart += 10;\n";
       if (DEBUG > 1) DESERIALIZE += "              console.log(\"Value (bool, " + (++id) + "): \" + JSON.Util.ptrToStr(lastIndex, srcStart - 10));";
-      generateGroups( sortedMembers.boolean, (group) => {
-          generateConsts(group);
+      generateGroups(sortedMembers.boolean, (group) => {
+        generateConsts(group);
 
-          const first = group[0];
-          const fName = first.alias || first.name;
-          DESERIALIZE += indent + "          if (" + getComparision(fName) + ") { // " + fName + "\n";
-          DESERIALIZE += indent + "            store<" + first.type + ">(changetype<usize>(out), false, offsetof<this>(" + JSON.stringify(first.name) + "));\n";
+        const first = group[0];
+        const fName = first.alias || first.name;
+        DESERIALIZE += indent + "          if (" + getComparision(fName) + ") { // " + fName + "\n";
+        DESERIALIZE += indent + "            store<" + first.type + ">(changetype<usize>(out), false, offsetof<this>(" + JSON.stringify(first.name) + "));\n";
+        DESERIALIZE += indent + "            srcStart += 2;\n";
+        DESERIALIZE += indent + "            keyStart = 0;\n";
+        DESERIALIZE += indent + "            break;\n";
+        DESERIALIZE += indent + "          }";
+
+        for (let i = 1; i < group.length; i++) {
+          const mem = group[i];
+          const memName = mem.alias || mem.name;
+          DESERIALIZE += indent + " else if (" + getComparision(memName) + ") { // " + memName + "\n";
+          DESERIALIZE += indent + "            store<" + mem.type + ">(changetype<usize>(out), false, offsetof<this>(" + JSON.stringify(mem.name) + "));\n";
           DESERIALIZE += indent + "            srcStart += 2;\n";
           DESERIALIZE += indent + "            keyStart = 0;\n";
           DESERIALIZE += indent + "            break;\n";
           DESERIALIZE += indent + "          }";
+        }
 
-          for (let i = 1; i < group.length; i++) {
-            const mem = group[i];
-            const memName = mem.alias || mem.name;
-            DESERIALIZE += indent + " else if (" + getComparision(memName) + ") { // " + memName + "\n";
-            DESERIALIZE += indent + "            store<" + mem.type + ">(changetype<usize>(out), false, offsetof<this>(" + JSON.stringify(mem.name) + "));\n";
-            DESERIALIZE += indent + "            srcStart += 2;\n";
-            DESERIALIZE += indent + "            keyStart = 0;\n";
-            DESERIALIZE += indent + "            break;\n";
-            DESERIALIZE += indent + "          }";
-          }
-
-          if (STRICT) {
-            DESERIALIZE += " else {\n";
-            DESERIALIZE += indent + '            throw new Error("Unexpected key value pair in JSON object \'" + JSON.Util.ptrToStr(keyStart, keyEnd) + ":" + JSON.Util.ptrToStr(lastIndex, srcStart) + "\' at position " + (srcEnd - srcStart).toString());\n';
-            DESERIALIZE += indent + "          }\n";
-          } else {
-            DESERIALIZE += " else { \n";
-            DESERIALIZE += indent + "              srcStart += 2;\n";
-            DESERIALIZE += indent + "              keyStart = 0;\n";
-            DESERIALIZE += indent + "              break;\n";
-            DESERIALIZE += indent + "            }\n";
-          }
-        },
+        if (STRICT) {
+          DESERIALIZE += " else {\n";
+          DESERIALIZE += indent + '            throw new Error("Unexpected key value pair in JSON object \'" + JSON.Util.ptrToStr(keyStart, keyEnd) + ":" + JSON.Util.ptrToStr(lastIndex, srcStart) + "\' at position " + (srcEnd - srcStart).toString());\n';
+          DESERIALIZE += indent + "          }\n";
+        } else {
+          DESERIALIZE += " else { \n";
+          DESERIALIZE += indent + "              srcStart += 2;\n";
+          DESERIALIZE += indent + "              keyStart = 0;\n";
+          DESERIALIZE += indent + "              break;\n";
+          DESERIALIZE += indent + "            }\n";
+        }
+      },
         "boolean",
       );
 
@@ -920,37 +940,37 @@ class JSONTransform extends Visitor {
         generateConsts(group);
 
         const first = group[0];
-          const fName = first.alias || first.name;
-          DESERIALIZE += indent + "          if (" + getComparision(fName) + ") { // " + fName + "\n";
-          DESERIALIZE += indent + "            store<" + first.type + ">(changetype<usize>(out), null, offsetof<this>(" + JSON.stringify(first.name) + "));\n";
+        const fName = first.alias || first.name;
+        DESERIALIZE += indent + "          if (" + getComparision(fName) + ") { // " + fName + "\n";
+        DESERIALIZE += indent + "            store<" + first.type + ">(changetype<usize>(out), null, offsetof<this>(" + JSON.stringify(first.name) + "));\n";
+        DESERIALIZE += indent + "            srcStart += 2;\n";
+        DESERIALIZE += indent + "            keyStart = 0;\n";
+        DESERIALIZE += indent + "            break;\n";
+        DESERIALIZE += indent + "          }";
+
+        for (let i = 1; i < group.length; i++) {
+          const mem = group[i];
+          const memName = mem.alias || mem.name;
+          DESERIALIZE += indent + " else if (" + getComparision(memName) + ") { // " + memName + "\n";
+          DESERIALIZE += indent + "            store<" + mem.type + ">(changetype<usize>(out), null, offsetof<this>(" + JSON.stringify(mem.name) + "));\n";
           DESERIALIZE += indent + "            srcStart += 2;\n";
           DESERIALIZE += indent + "            keyStart = 0;\n";
           DESERIALIZE += indent + "            break;\n";
           DESERIALIZE += indent + "          }";
+        }
 
-          for (let i = 1; i < group.length; i++) {
-            const mem = group[i];
-            const memName = mem.alias || mem.name;
-            DESERIALIZE += indent + " else if (" + getComparision(memName) + ") { // " + memName + "\n";
-            DESERIALIZE += indent + "            store<" + mem.type + ">(changetype<usize>(out), null, offsetof<this>(" + JSON.stringify(mem.name) + "));\n";
-            DESERIALIZE += indent + "            srcStart += 2;\n";
-            DESERIALIZE += indent + "            keyStart = 0;\n";
-            DESERIALIZE += indent + "            break;\n";
-            DESERIALIZE += indent + "          }";
-          }
-
-          if (STRICT) {
-            DESERIALIZE += " else {\n";
-            DESERIALIZE += indent + '            throw new Error("Unexpected key value pair in JSON object \'" + JSON.Util.ptrToStr(keyStart, keyEnd) + ":" + JSON.Util.ptrToStr(lastIndex, srcStart) + "\' at position " + (srcEnd - srcStart).toString());\n';
-            DESERIALIZE += indent + "          }\n";
-          } else {
-            DESERIALIZE += " else { \n";
-            DESERIALIZE += indent + "              srcStart += 2;\n";
-            DESERIALIZE += indent + "              keyStart = 0;\n";
-            DESERIALIZE += indent + "              break;\n";
-            DESERIALIZE += indent + "            }\n";
-          }
-        },
+        if (STRICT) {
+          DESERIALIZE += " else {\n";
+          DESERIALIZE += indent + '            throw new Error("Unexpected key value pair in JSON object \'" + JSON.Util.ptrToStr(keyStart, keyEnd) + ":" + JSON.Util.ptrToStr(lastIndex, srcStart) + "\' at position " + (srcEnd - srcStart).toString());\n';
+          DESERIALIZE += indent + "          }\n";
+        } else {
+          DESERIALIZE += " else { \n";
+          DESERIALIZE += indent + "              srcStart += 2;\n";
+          DESERIALIZE += indent + "              keyStart = 0;\n";
+          DESERIALIZE += indent + "              break;\n";
+          DESERIALIZE += indent + "            }\n";
+        }
+      },
         "null",
       );
 
@@ -1074,7 +1094,7 @@ class JSONTransform extends Visitor {
       )
         ? path.join(pkgPath, fromPath.slice(5))
         : fromPath
-      : path.join(baseDir, fromPath);
+      : path.join(this.baseCWD, fromPath);
 
     const bsImport = this.imports.find((i) => i.declarations?.find((d) => d.foreignName.text == "bs" || d.name.text == "bs"));
     const jsonImport = this.imports.find((i) => i.declarations?.find((d) => d.foreignName.text == "JSON" || d.name.text == "JSON"));

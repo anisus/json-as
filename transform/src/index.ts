@@ -441,7 +441,7 @@ class JSONTransform extends Visitor {
         else if (isBoolean(type) || type.startsWith("JSON.Box<bool")) sortedMembers.boolean.push(member);
         else if (isPrimitive(type) || type.startsWith("JSON.Box<")) sortedMembers.number.push(member);
         else if (isArray(type)) sortedMembers.array.push(member);
-        else if (isStruct(type, source)) sortedMembers.object.push(member);
+        else if (isStruct(type)) sortedMembers.object.push(member);
         else throw new Error("Could not determine type " + type + " for member " + member.name + " in class " + this.schema.name);
       }
     }
@@ -1421,9 +1421,13 @@ function isBoolean(type: string): boolean {
   return type == "bool" || type == "boolean";
 }
 
-function isStruct(type: string, source: Source): boolean {
+function isStruct(type: string): boolean {
   type = stripNull(type);
-  return JSONTransform.SN.schemas.get(source.internalPath).some((v) => v.name == type) || JSONTransform.SN.schema.name == type;
+  const schema = JSONTransform.SN.schema;
+  if (schema.name == type) return true;
+  const depSearch = schema.deps.some((v) => v.name == type);
+  if (depSearch) return true;
+  return false;
 }
 
 function isString(type: string) {

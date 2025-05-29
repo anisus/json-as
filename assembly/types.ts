@@ -65,6 +65,5 @@ export class Vec3 {
   z: f32 = 0.0;
 }
 
-
 @json
 export class Point { }

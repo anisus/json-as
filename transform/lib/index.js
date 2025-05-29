@@ -434,7 +434,7 @@ class JSONTransform extends Visitor {
                     sortedMembers.number.push(member);
                 else if (isArray(type))
                     sortedMembers.array.push(member);
-                else if (isStruct(type, source))
+                else if (isStruct(type))
                     sortedMembers.object.push(member);
                 else
                     throw new Error("Could not determine type " + type + " for member " + member.name + " in class " + this.schema.name);
@@ -1237,9 +1237,15 @@ function isPrimitive(type) {
 function isBoolean(type) {
     return type == "bool" || type == "boolean";
 }
-function isStruct(type, source) {
+function isStruct(type) {
     type = stripNull(type);
-    return JSONTransform.SN.schemas.get(source.internalPath).some((v) => v.name == type) || JSONTransform.SN.schema.name == type;
+    const schema = JSONTransform.SN.schema;
+    if (schema.name == type)
+        return true;
+    const depSearch = schema.deps.some((v) => v.name == type);
+    if (depSearch)
+        return true;
+    return false;
 }
 function isString(type) {
     return stripNull(type) == "string" || stripNull(type) == "String";

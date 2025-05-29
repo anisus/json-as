@@ -1,3 +1,4 @@
+import { TypeAlias } from "./linkers/alias.js";
 export var PropertyFlags;
 (function (PropertyFlags) {
     PropertyFlags[PropertyFlags["OmitNull"] = 0] = "OmitNull";
@@ -25,5 +26,16 @@ export class Schema {
     byteSize = 0;
     deps = [];
     custom = false;
+}
+export class Src {
+    internalPath;
+    schemas;
+    aliases;
+    imports;
+    exports;
+    constructor(source) {
+        this.internalPath = source.internalPath;
+        this.aliases = TypeAlias.getAliases(source);
+    }
 }
 //# sourceMappingURL=types.js.map

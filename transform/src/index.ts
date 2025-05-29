@@ -1,12 +1,13 @@
-import { ClassDeclaration, FieldDeclaration, IdentifierExpression, Parser, Source, NodeKind, CommonFlags, ImportStatement, Node, Tokenizer, SourceKind, NamedTypeNode, Range, FEATURE_SIMD, FunctionExpression, MethodDeclaration, Statement, Program, Feature, CallExpression, PropertyAccessExpression } from "assemblyscript/dist/assemblyscript.js";
+import { ClassDeclaration, FieldDeclaration, IdentifierExpression, Parser, Source, NodeKind, CommonFlags, ImportStatement, Node, SourceKind, NamedTypeNode, Range, FunctionExpression, MethodDeclaration, Program, Feature } from "assemblyscript/dist/assemblyscript.js";
 import { Transform } from "assemblyscript/dist/transform.js";
 import { Visitor } from "./visitor.js";
-import { cloneNode, isStdlib, removeExtension, replaceRef, SimpleParser, toString } from "./util.js";
+import { isStdlib, removeExtension, SimpleParser, toString } from "./util.js";
 import * as path from "path";
 import { fileURLToPath } from "url";
-import { Property, PropertyFlags, Schema } from "./types.js";
-import { getClass, getClasses, getImportedClass } from "./linker.js";
+import { Property, PropertyFlags, Schema, Src } from "./types.js";
+import { getClass, getImportedClass } from "./linkers/classes.js";
 import { existsSync, writeFileSync } from "fs";
+import { CustomTransform } from "./linkers/custom.js";
 
 let indent = "  ";
 
@@ -25,50 +26,6 @@ const DEBUG = rawValue === "true"
 
 const STRICT = process.env["JSON_STRICT"] && process.env["JSON_STRICT"] == "true";
 
-class CustomTransform extends Visitor {
-  static SN: CustomTransform = new CustomTransform();
-
-  private modify: boolean = false;
-  visitCallExpression(node: CallExpression) {
-    super.visit(node.args, node);
-    if (node.expression.kind != NodeKind.PropertyAccess || (node.expression as PropertyAccessExpression).property.text != "stringify") return;
-    if ((node.expression as PropertyAccessExpression).expression.kind != NodeKind.Identifier || ((node.expression as PropertyAccessExpression).expression as IdentifierExpression).text != "JSON") return;
-
-    if (this.modify) {
-      (node.expression as PropertyAccessExpression).expression = Node.createPropertyAccessExpression(Node.createIdentifierExpression("JSON", node.expression.range), Node.createIdentifierExpression("internal", node.expression.range), node.expression.range);
-    }
-    this.modify = true;
-
-    // console.log(toString(node));
-    // console.log(SimpleParser.parseStatement("JSON.internal.stringify").expression.expression)
-  }
-  static visit(node: Node | Node[], ref: Node | null = null): void {
-    if (!node) return;
-    CustomTransform.SN.modify = true;
-    CustomTransform.SN.visit(node, ref);
-    CustomTransform.SN.modify = false;
-  }
-  static hasCall(node: Node | Node[]): boolean {
-    if (!node) return;
-    CustomTransform.SN.modify = false;
-    CustomTransform.SN.visit(node);
-    return CustomTransform.SN.modify;
-  }
-}
-
-class TypeAlias {
-  public name: string;
-  public type: TypeAlias | string;
-  constructor(name: string, type: TypeAlias | string) {
-    this.name = name;
-    this.type = type;
-  }
-  getBaseType(): string {
-    if (typeof this.type === "string") return this.type;
-    return this.type.getBaseType();
-  }
-}
-
 class JSONTransform extends Visitor {
   static SN: JSONTransform = new JSONTransform();
 
@@ -77,14 +34,13 @@ class JSONTransform extends Visitor {
   public parser!: Parser;
   public schemas: Map<string, Schema[]> = new Map<string, Schema[]>();
   public schema!: Schema;
-  public sources = new Set<Source>();
+  public src!: Src;
+  public sources: Map<string, Src> = new Map<string, Src>();
   public imports: ImportStatement[] = [];
 
   public simdStatements: string[] = [];
 
   private visitedClasses: Set<string> = new Set<string>();
-
-  public typeAliases: Set<TypeAlias> = new Set<TypeAlias>();
 
   visitClassDeclarationRef(node: ClassDeclaration): void {
     if (
@@ -104,10 +60,13 @@ class JSONTransform extends Visitor {
         const name = (<IdentifierExpression>decorator.name).text;
         return name === "json" || name === "serializable";
       })
-    )
-      return;
+    ) return;
 
     const source = node.range.source;
+    if (!this.sources.has(source.internalPath)) {
+      this.src = new Src(source);
+      this.sources.set(source.internalPath, this.src);
+    } else this.src = this.sources.get(source.internalPath);
 
     if (this.visitedClasses.has(source.internalPath + node.name.text)) return;
     if (!this.schemas.has(source.internalPath)) this.schemas.set(source.internalPath, []);
@@ -172,6 +131,7 @@ class JSONTransform extends Visitor {
 
     const getUnknownTypes = (type: string, types: string[] = []): string[] => {
       type = stripNull(type);
+      type = this.src.aliases.find(v => stripNull(v.name) == type)?.getBaseType() || type;
       if (type.startsWith("Array<")) {
         return getUnknownTypes(type.slice(6, -1));
       } else if (type.startsWith("Map<")) {
@@ -294,7 +254,9 @@ class JSONTransform extends Visitor {
 
     for (const member of members) {
       if (!member.type) throwError("Fields must be strongly typed", node.range);
-      const type = toString(member.type!);
+      let type = toString(member.type!);
+      type = this.src.aliases.find(v => stripNull(v.name) == stripNull(type))?.getBaseType() || type;
+
       const name = member.name;
       const value = member.initializer ? toString(member.initializer!) : null;
 
@@ -473,7 +435,7 @@ class JSONTransform extends Visitor {
         sortedMembers.array.push(member);
         sortedMembers.boolean.push(member);
         sortedMembers.null.push(member);
-      } else { 
+      } else {
         if (member.node.type.isNullable) sortedMembers.null.push(member);
         if (isString(type) || type == "JSON.Raw") sortedMembers.string.push(member);
         else if (isBoolean(type) || type.startsWith("JSON.Box<bool")) sortedMembers.boolean.push(member);

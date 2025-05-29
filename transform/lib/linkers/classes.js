@@ -1,19 +1,5 @@
-import { Visitor } from "./visitor.js";
-class ImportGetter extends Visitor {
-    static SN = new ImportGetter();
-    imports = [];
-    visitImportStatement(node, ref) {
-        this.imports.push(node);
-    }
-    static getImports(source) {
-        ImportGetter.SN.imports = [];
-        ImportGetter.SN.visit(source);
-        return ImportGetter.SN.imports;
-    }
-}
-export function getImports(source) {
-    return ImportGetter.getImports(source);
-}
+import { Visitor } from "../visitor.js";
+import { getImports } from "./imports.js";
 export function getImportedClass(name, source, parser) {
     for (const stmt of getImports(source)) {
         const externalSource = parser.sources.filter((src) => src.internalPath != source.internalPath).find((src) => src.internalPath == stmt.internalPath);
@@ -47,4 +33,4 @@ export function getClasses(source) {
 export function getClass(name, source) {
     return ClassGetter.getClass(name, source);
 }
-//# sourceMappingURL=linker.js.map
+//# sourceMappingURL=classes.js.map

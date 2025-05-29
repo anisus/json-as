@@ -1,4 +1,5 @@
-import { ClassDeclaration, Expression, FieldDeclaration } from "assemblyscript/dist/assemblyscript.js";
+import { ClassDeclaration, Expression, FieldDeclaration, Source } from "assemblyscript/dist/assemblyscript.js";
+import { TypeAlias } from "./linkers/alias.js";
 
 export enum PropertyFlags {
   OmitNull,
@@ -28,4 +29,16 @@ export class Schema {
   public byteSize: number = 0;
   public deps: Schema[] = [];
   public custom: boolean = false;
+}
+
+export class Src {
+  public internalPath: string;
+  public schemas: Schema[];
+  public aliases: TypeAlias[];
+  public imports: Schema[];
+  public exports: Schema[];
+  constructor(source: Source) {
+    this.internalPath = source.internalPath;
+    this.aliases = TypeAlias.getAliases(source);
+  }
 }

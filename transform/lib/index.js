@@ -4,9 +4,10 @@ import { Visitor } from "./visitor.js";
 import { isStdlib, removeExtension, SimpleParser, toString } from "./util.js";
 import * as path from "path";
 import { fileURLToPath } from "url";
-import { Property, PropertyFlags, Schema } from "./types.js";
-import { getClass, getImportedClass } from "./linker.js";
+import { Property, PropertyFlags, Schema, Src } from "./types.js";
+import { getClass, getImportedClass } from "./linkers/classes.js";
 import { existsSync, writeFileSync } from "fs";
+import { CustomTransform } from "./linkers/custom.js";
 let indent = "  ";
 let id = 0;
 const WRITE = process.env["JSON_WRITE"];
@@ -19,48 +20,6 @@ const DEBUG = rawValue === "true"
             ? 0
             : Number(rawValue);
 const STRICT = process.env["JSON_STRICT"] && process.env["JSON_STRICT"] == "true";
-class CustomTransform extends Visitor {
-    static SN = new CustomTransform();
-    modify = false;
-    visitCallExpression(node) {
-        super.visit(node.args, node);
-        if (node.expression.kind != 21 || node.expression.property.text != "stringify")
-            return;
-        if (node.expression.expression.kind != 6 || node.expression.expression.text != "JSON")
-            return;
-        if (this.modify) {
-            node.expression.expression = Node.createPropertyAccessExpression(Node.createIdentifierExpression("JSON", node.expression.range), Node.createIdentifierExpression("internal", node.expression.range), node.expression.range);
-        }
-        this.modify = true;
-    }
-    static visit(node, ref = null) {
-        if (!node)
-            return;
-        CustomTransform.SN.modify = true;
-        CustomTransform.SN.visit(node, ref);
-        CustomTransform.SN.modify = false;
-    }
-    static hasCall(node) {
-        if (!node)
-            return;
-        CustomTransform.SN.modify = false;
-        CustomTransform.SN.visit(node);
-        return CustomTransform.SN.modify;
-    }
-}
-class TypeAlias {
-    name;
-    type;
-    constructor(name, type) {
-        this.name = name;
-        this.type = type;
-    }
-    getBaseType() {
-        if (typeof this.type === "string")
-            return this.type;
-        return this.type.getBaseType();
-    }
-}
 class JSONTransform extends Visitor {
     static SN = new JSONTransform();
     program;
@@ -68,11 +27,11 @@ class JSONTransform extends Visitor {
     parser;
     schemas = new Map();
     schema;
-    sources = new Set();
+    src;
+    sources = new Map();
     imports = [];
     simdStatements = [];
     visitedClasses = new Set();
-    typeAliases = new Set();
     visitClassDeclarationRef(node) {
         if (!node.decorators?.length ||
             !node.decorators.some((decorator) => {
@@ -91,6 +50,12 @@ class JSONTransform extends Visitor {
         }))
             return;
         const source = node.range.source;
+        if (!this.sources.has(source.internalPath)) {
+            this.src = new Src(source);
+            this.sources.set(source.internalPath, this.src);
+        }
+        else
+            this.src = this.sources.get(source.internalPath);
         if (this.visitedClasses.has(source.internalPath + node.name.text))
             return;
         if (!this.schemas.has(source.internalPath))
@@ -160,6 +125,7 @@ class JSONTransform extends Visitor {
         }
         const getUnknownTypes = (type, types = []) => {
             type = stripNull(type);
+            type = this.src.aliases.find(v => stripNull(v.name) == type)?.getBaseType() || type;
             if (type.startsWith("Array<")) {
                 return getUnknownTypes(type.slice(6, -1));
             }
@@ -291,7 +257,8 @@ class JSONTransform extends Visitor {
         for (const member of members) {
             if (!member.type)
                 throwError("Fields must be strongly typed", node.range);
-            const type = toString(member.type);
+            let type = toString(member.type);
+            type = this.src.aliases.find(v => stripNull(v.name) == stripNull(type))?.getBaseType() || type;
             const name = member.name;
             const value = member.initializer ? toString(member.initializer) : null;
             if (type.startsWith("(") && type.includes("=>"))

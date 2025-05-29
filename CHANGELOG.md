@@ -1,5 +1,15 @@
 # Change Log
 
+## 2025-05-29 - 1.1.2
+
+- fix: add helpful warning on unknown or unaccessible types in fields
+- feat: support deserialization of class generics
+- fix: add support for numerical generics
+- tests: add proper testing for generics
+- feat: support type aliases with a custom type resolver/linker
+- chore: add other linkers to tsconfig and clean up
+- feat: add type alias resolving
+
 ## 2025-05-28 - 1.1.11
 
 - fix: class resolving should only search top level statements for class declarations

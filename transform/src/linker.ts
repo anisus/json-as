@@ -10,6 +10,7 @@ class ImportGetter extends Visitor {
   visitImportStatement(node: ImportStatement, ref?: Node | null): void {
     this.imports.push(node);
   }
+
   static getImports(source: Source): ImportStatement[] {
     ImportGetter.SN.imports = [];
     ImportGetter.SN.visit(source);
@@ -43,14 +44,20 @@ class ClassGetter extends Visitor {
     this.classes.push(node);
   }
 
+  // visitTypeName(node: TypeName, ref?: Node | null): void {}
+  // visitParameter(node: ParameterNode, ref?: Node | null): void {}
+  // visitFunctionTypeNode(node: FunctionTypeNode, ref?: Node | null): void {}
+  // visitNamedTypeNode(node: NamedTypeNode, ref?: Node | null): void {}
+
   static getClass(name: string, source: Source): ClassDeclaration | null {
     return ClassGetter.getClasses(source).find((c) => c.name.text == name) || null;
   }
 
   static getClasses(source: Source): ClassDeclaration[] {
-    ClassGetter.SN.classes = [];
-    ClassGetter.SN.visit(source);
-    return ClassGetter.SN.classes;
+    // ClassGetter.SN.classes = [];
+    // ClassGetter.SN.visit(source);
+    // return ClassGetter.SN.classes;
+    return source.statements.filter((stmt) => stmt.kind == NodeKind.ClassDeclaration) as ClassDeclaration[];
   }
 }
 

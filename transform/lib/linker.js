@@ -38,9 +38,7 @@ class ClassGetter extends Visitor {
         return ClassGetter.getClasses(source).find((c) => c.name.text == name) || null;
     }
     static getClasses(source) {
-        ClassGetter.SN.classes = [];
-        ClassGetter.SN.visit(source);
-        return ClassGetter.SN.classes;
+        return source.statements.filter((stmt) => stmt.kind == 51);
     }
 }
 export function getClasses(source) {

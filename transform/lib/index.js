@@ -174,14 +174,16 @@ class JSONTransform extends Visitor {
             for (const unknownType of unknown) {
                 const depSearch = schema.deps.find((v) => v.name == unknownType);
                 if (depSearch) {
-                    console.log("Found " + unknownType + " in dependencies of " + node.range.source.internalPath);
+                    if (DEBUG > 0)
+                        console.log("Found " + unknownType + " in dependencies of " + node.range.source.internalPath);
                     if (!schema.deps.some(v => v.name == depSearch.name))
                         schema.deps.push(depSearch);
                 }
                 else {
                     const internalSearch = getClass(unknownType, node.range.source);
                     if (internalSearch) {
-                        console.log("Found " + unknownType + " internally from " + node.range.source.internalPath);
+                        if (DEBUG > 0)
+                            console.log("Found " + unknownType + " internally from " + node.range.source.internalPath);
                         if (!this.visitedClasses.has(internalSearch.range.source.internalPath + internalSearch.name.text)) {
                             this.visitClassDeclarationRef(internalSearch);
                             this.schemas.get(internalSearch.range.source.internalPath).push(this.schema);
@@ -196,7 +198,8 @@ class JSONTransform extends Visitor {
                     else {
                         const externalSearch = getImportedClass(unknownType, node.range.source, this.parser);
                         if (externalSearch) {
-                            console.log("Found " + externalSearch.name.text + " externally from " + node.range.source.internalPath);
+                            if (DEBUG > 0)
+                                console.log("Found " + externalSearch.name.text + " externally from " + node.range.source.internalPath);
                             if (!this.visitedClasses.has(externalSearch.range.source.internalPath + externalSearch.name.text)) {
                                 this.visitClassDeclarationRef(externalSearch);
                                 this.schemas.get(externalSearch.range.source.internalPath).push(this.schema);

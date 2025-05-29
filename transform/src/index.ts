@@ -56,6 +56,19 @@ class CustomTransform extends Visitor {
   }
 }
 
+class TypeAlias {
+  public name: string;
+  public type: TypeAlias | string;
+  constructor(name: string, type: TypeAlias | string) {
+    this.name = name;
+    this.type = type;
+  }
+  getBaseType(): string {
+    if (typeof this.type === "string") return this.type;
+    return this.type.getBaseType();
+  }
+}
+
 class JSONTransform extends Visitor {
   static SN: JSONTransform = new JSONTransform();
 
@@ -67,10 +80,11 @@ class JSONTransform extends Visitor {
   public sources = new Set<Source>();
   public imports: ImportStatement[] = [];
 
-  public topStatements: Statement[] = [];
   public simdStatements: string[] = [];
 
   private visitedClasses: Set<string> = new Set<string>();
+
+  public typeAliases: Set<TypeAlias> = new Set<TypeAlias>();
 
   visitClassDeclarationRef(node: ClassDeclaration): void {
     if (
@@ -450,17 +464,23 @@ class JSONTransform extends Visitor {
     };
 
     for (const member of this.schema.members) {
-      if (member.type.endsWith(" | null")) sortedMembers.null.push(member);
-      if (isString(member.type) || member.type == "JSON.Raw") sortedMembers.string.push(member);
-      else if (isBoolean(member.type) || member.type.startsWith("JSON.Box<bool")) sortedMembers.boolean.push(member);
-      else if (isPrimitive(member.type) || member.type.startsWith("JSON.Box<")) sortedMembers.number.push(member);
-      else if (isArray(member.type)) sortedMembers.array.push(member);
-      else if (isStruct(member.type, source)) sortedMembers.object.push(member);
-      else throw new Error("Could not determine type " + member.type + " for member " + member.name + " in class " + this.schema.name);
+      const type = stripNull(member.type);
+      if (member.node.type.isNullable) sortedMembers.null.push(member);
+      if (isString(type) || type == "JSON.Raw") sortedMembers.string.push(member);
+      else if (isBoolean(type) || type.startsWith("JSON.Box<bool")) sortedMembers.boolean.push(member);
+      else if (isPrimitive(type) || type.startsWith("JSON.Box<")) sortedMembers.number.push(member);
+      else if (isArray(type)) sortedMembers.array.push(member);
+      else if (isStruct(type, source)) sortedMembers.object.push(member);
+      else if (node.isGeneric && node.typeParameters.some((p) => stripNull(p.name.text) == type)) {
+        sortedMembers.null.push(member);
+        sortedMembers.string.push(member);
+        sortedMembers.array.push(member);
+        sortedMembers.object.push(member);
+      }
+      else throw new Error("Could not determine type " + type + " for member " + member.name + " in class " + this.schema.name);
     }
 
     indent = "";
-    let shouldGroup = false;
 
     DESERIALIZE += indent + "  let keyStart: usize = 0;\n";
     DESERIALIZE += indent + "  let keyEnd: usize = 0;\n";
@@ -1270,10 +1290,6 @@ export default class Transformer extends Transform {
       transformer.currentSource = source;
       transformer.visit(source);
 
-      if (transformer.topStatements.length) {
-        source.statements.unshift(...transformer.topStatements);
-        transformer.topStatements = [];
-      }
       if (transformer.simdStatements.length) {
         for (const simd of transformer.simdStatements) source.statements.unshift(SimpleParser.parseTopLevelStatement(simd));
       }

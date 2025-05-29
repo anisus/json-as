@@ -48,6 +48,19 @@ class CustomTransform extends Visitor {
         return CustomTransform.SN.modify;
     }
 }
+class TypeAlias {
+    name;
+    type;
+    constructor(name, type) {
+        this.name = name;
+        this.type = type;
+    }
+    getBaseType() {
+        if (typeof this.type === "string")
+            return this.type;
+        return this.type.getBaseType();
+    }
+}
 class JSONTransform extends Visitor {
     static SN = new JSONTransform();
     program;
@@ -57,9 +70,9 @@ class JSONTransform extends Visitor {
     schema;
     sources = new Set();
     imports = [];
-    topStatements = [];
     simdStatements = [];
     visitedClasses = new Set();
+    typeAliases = new Set();
     visitClassDeclarationRef(node) {
         if (!node.decorators?.length ||
             !node.decorators.some((decorator) => {
@@ -433,23 +446,29 @@ class JSONTransform extends Visitor {
             object: [],
         };
         for (const member of this.schema.members) {
-            if (member.type.endsWith(" | null"))
+            const type = stripNull(member.type);
+            if (member.node.type.isNullable)
                 sortedMembers.null.push(member);
-            if (isString(member.type) || member.type == "JSON.Raw")
+            if (isString(type) || type == "JSON.Raw")
                 sortedMembers.string.push(member);
-            else if (isBoolean(member.type) || member.type.startsWith("JSON.Box<bool"))
+            else if (isBoolean(type) || type.startsWith("JSON.Box<bool"))
                 sortedMembers.boolean.push(member);
-            else if (isPrimitive(member.type) || member.type.startsWith("JSON.Box<"))
+            else if (isPrimitive(type) || type.startsWith("JSON.Box<"))
                 sortedMembers.number.push(member);
-            else if (isArray(member.type))
+            else if (isArray(type))
                 sortedMembers.array.push(member);
-            else if (isStruct(member.type, source))
+            else if (isStruct(type, source))
                 sortedMembers.object.push(member);
+            else if (node.isGeneric && node.typeParameters.some((p) => stripNull(p.name.text) == type)) {
+                sortedMembers.null.push(member);
+                sortedMembers.string.push(member);
+                sortedMembers.array.push(member);
+                sortedMembers.object.push(member);
+            }
             else
-                throw new Error("Could not determine type " + member.type + " for member " + member.name + " in class " + this.schema.name);
+                throw new Error("Could not determine type " + type + " for member " + member.name + " in class " + this.schema.name);
         }
         indent = "";
-        let shouldGroup = false;
         DESERIALIZE += indent + "  let keyStart: usize = 0;\n";
         DESERIALIZE += indent + "  let keyEnd: usize = 0;\n";
         DESERIALIZE += indent + "  let isKey = false;\n";
@@ -1102,10 +1121,6 @@ export default class Transformer extends Transform {
             transformer.imports = [];
             transformer.currentSource = source;
             transformer.visit(source);
-            if (transformer.topStatements.length) {
-                source.statements.unshift(...transformer.topStatements);
-                transformer.topStatements = [];
-            }
             if (transformer.simdStatements.length) {
                 for (const simd of transformer.simdStatements)
                     source.statements.unshift(SimpleParser.parseTopLevelStatement(simd));

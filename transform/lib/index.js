@@ -77,10 +77,11 @@ class JSONTransform extends Visitor {
             return name === "json" || name === "serializable";
         }))
             return;
-        if (this.visitedClasses.has(node.range.source.internalPath + node.name.text))
+        const source = node.range.source;
+        if (this.visitedClasses.has(source.internalPath + node.name.text))
             return;
-        if (!this.schemas.has(node.range.source.internalPath))
-            this.schemas.set(node.range.source.internalPath, []);
+        if (!this.schemas.has(source.internalPath))
+            this.schemas.set(source.internalPath, []);
         const members = [...node.members.filter((v) => v.kind === 54 && v.flags !== 32 && v.flags !== 512 && v.flags !== 1024 && !v.decorators?.some((decorator) => decorator.name.text === "omit"))];
         const serializers = [...node.members.filter((v) => v.kind === 58 && v.decorators && v.decorators.some((e) => e.name.text.toLowerCase() === "serializer"))];
         const deserializers = [...node.members.filter((v) => v.kind === 58 && v.decorators && v.decorators.some((e) => e.name.text.toLowerCase() === "deserializer"))];
@@ -93,16 +94,16 @@ class JSONTransform extends Visitor {
                 const depSearch = schema.deps.find((v) => v.name == extendsName);
                 if (depSearch) {
                     if (DEBUG > 0)
-                        console.log("Found " + extendsName + " in dependencies of " + node.range.source.internalPath);
+                        console.log("Found " + extendsName + " in dependencies of " + source.internalPath);
                     if (!schema.deps.some(v => v.name == depSearch.name))
                         schema.deps.push(depSearch);
                     schema.parent = depSearch;
                 }
                 else {
-                    const internalSearch = getClass(extendsName, node.range.source);
+                    const internalSearch = getClass(extendsName, source);
                     if (internalSearch) {
                         if (DEBUG > 0)
-                            console.log("Found " + extendsName + " internally from " + node.range.source.internalPath);
+                            console.log("Found " + extendsName + " internally from " + source.internalPath);
                         if (!this.visitedClasses.has(internalSearch.range.source.internalPath + internalSearch.name.text)) {
                             this.visitClassDeclarationRef(internalSearch);
                             this.schemas.get(internalSearch.range.source.internalPath).push(this.schema);
@@ -116,10 +117,10 @@ class JSONTransform extends Visitor {
                         schema.parent = schem;
                     }
                     else {
-                        const externalSearch = getImportedClass(extendsName, node.range.source, this.parser);
+                        const externalSearch = getImportedClass(extendsName, source, this.parser);
                         if (externalSearch) {
                             if (DEBUG > 0)
-                                console.log("Found " + externalSearch.name.text + " externally from " + node.range.source.internalPath);
+                                console.log("Found " + externalSearch.name.text + " externally from " + source.internalPath);
                             if (!this.visitedClasses.has(externalSearch.range.source.internalPath + externalSearch.name.text)) {
                                 this.visitClassDeclarationRef(externalSearch);
                                 this.schemas.get(externalSearch.range.source.internalPath).push(this.schema);
@@ -175,15 +176,15 @@ class JSONTransform extends Visitor {
                 const depSearch = schema.deps.find((v) => v.name == unknownType);
                 if (depSearch) {
                     if (DEBUG > 0)
-                        console.log("Found " + unknownType + " in dependencies of " + node.range.source.internalPath);
+                        console.log("Found " + unknownType + " in dependencies of " + source.internalPath);
                     if (!schema.deps.some(v => v.name == depSearch.name))
                         schema.deps.push(depSearch);
                 }
                 else {
-                    const internalSearch = getClass(unknownType, node.range.source);
+                    const internalSearch = getClass(unknownType, source);
                     if (internalSearch) {
                         if (DEBUG > 0)
-                            console.log("Found " + unknownType + " internally from " + node.range.source.internalPath);
+                            console.log("Found " + unknownType + " internally from " + source.internalPath);
                         if (!this.visitedClasses.has(internalSearch.range.source.internalPath + internalSearch.name.text)) {
                             this.visitClassDeclarationRef(internalSearch);
                             this.schemas.get(internalSearch.range.source.internalPath).push(this.schema);
@@ -196,10 +197,10 @@ class JSONTransform extends Visitor {
                         schema.deps.push(schem);
                     }
                     else {
-                        const externalSearch = getImportedClass(unknownType, node.range.source, this.parser);
+                        const externalSearch = getImportedClass(unknownType, source, this.parser);
                         if (externalSearch) {
                             if (DEBUG > 0)
-                                console.log("Found " + externalSearch.name.text + " externally from " + node.range.source.internalPath);
+                                console.log("Found " + externalSearch.name.text + " externally from " + source.internalPath);
                             if (!this.visitedClasses.has(externalSearch.range.source.internalPath + externalSearch.name.text)) {
                                 this.visitClassDeclarationRef(externalSearch);
                                 this.schemas.get(externalSearch.range.source.internalPath).push(this.schema);
@@ -215,16 +216,16 @@ class JSONTransform extends Visitor {
                 }
             }
         }
-        this.schemas.get(node.range.source.internalPath).push(schema);
+        this.schemas.get(source.internalPath).push(schema);
         this.schema = schema;
-        this.visitedClasses.add(node.range.source.internalPath + node.name.text);
+        this.visitedClasses.add(source.internalPath + node.name.text);
         let SERIALIZE = "__SERIALIZE(ptr: usize): void {\n";
         let INITIALIZE = "@inline __INITIALIZE(): this {\n";
         let DESERIALIZE = "__DESERIALIZE<__JSON_T>(srcStart: usize, srcEnd: usize, out: __JSON_T): __JSON_T {\n";
         let DESERIALIZE_CUSTOM = "";
         let SERIALIZE_CUSTOM = "";
         if (DEBUG > 0)
-            console.log("Created schema: " + this.schema.name + " in file " + node.range.source.normalizedPath + (this.schema.deps.length ? " with dependencies:\n  " + this.schema.deps.map((v) => v.name).join("\n  ") : ""));
+            console.log("Created schema: " + this.schema.name + " in file " + source.normalizedPath + (this.schema.deps.length ? " with dependencies:\n  " + this.schema.deps.map((v) => v.name).join("\n  ") : ""));
         if (serializers.length > 1)
             throwError("Multiple serializers detected for class " + node.name.text + " but schemas can only have one serializer!", serializers[1].range);
         if (deserializers.length > 1)
@@ -442,8 +443,10 @@ class JSONTransform extends Visitor {
                 sortedMembers.number.push(member);
             else if (isArray(member.type))
                 sortedMembers.array.push(member);
-            else
+            else if (isStruct(member.type, source))
                 sortedMembers.object.push(member);
+            else
+                throw new Error("Could not determine type " + member.type + " for member " + member.name + " in class " + this.schema.name);
         }
         indent = "";
         let shouldGroup = false;

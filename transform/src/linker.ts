@@ -27,6 +27,7 @@ export function getImportedClass(name: string, source: Source, parser: Parser): 
     if (!externalSource) continue;
 
     const classDeclaration = ClassGetter.getClass(name, externalSource);
+    if (!classDeclaration) continue;
     if (!(classDeclaration.flags & CommonFlags.Export)) continue;
     return classDeclaration;
   }

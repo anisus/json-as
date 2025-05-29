@@ -22,5 +22,5 @@ describe("Should serialize with type aliases", () => {
 });
 
 describe("Should deserialize with type aliases", () => {
-    expect(JSON.stringify(JSON.parse('{"foo":"bar"}'))).toBe('{"foo":"bar"}');
+    expect(JSON.stringify(JSON.parse<Alias>('{"foo":"bar"}'))).toBe('{"foo":"bar"}');
 });

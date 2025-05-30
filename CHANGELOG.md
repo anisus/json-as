@@ -1,5 +1,11 @@
 # Change Log
 
+## UNRELEASED
+
+- feat: support `JSON.Raw` in array types
+- tests: add tests for `JSON.Raw[]`
+- tests: properly support nulls (in testing lib)
+
 ## 2025-05-29 - 1.1.14
 
 - fix: hotfix schema resolver

@@ -6,7 +6,7 @@
 ██   ██      ██ ██    ██ ██  ██ ██       ██   ██      ██
  █████  ███████  ██████  ██   ████       ██   ██ ███████
  </span>
-    AssemblyScript - v1.1.14
+    AssemblyScript - v1.1.14-preview.1
   </pre>
 </h6>
 
@@ -23,6 +23,7 @@ JSON is the de-facto serialization format of modern web applications, but its se
   - [Nullable Primitives](#️-using-nullable-primitives)
   - [Unknown or Dynamic Data](#-working-with-unknown-or-dynamic-data)
   - [Using Raw JSON Strings](#️-using-raw-json-strings)
+  - [Using Enums](#️-working-with-enums)
   - [Custom Serializers](#️-using-custom-serializers-or-deserializers)
 - [Performance](#-performance)
 - [Debugging](#-debugging)
@@ -300,6 +301,23 @@ map.set("pos", new JSON.Raw('{"x":1.0,"y":2.0,"z":3.0}'));
 console.log(JSON.stringify(map));
 // {"pos":{"x":1.0,"y":2.0,"z":3.0}}
 // Now its properly formatted JSON where pos's value is of type Vec3 not string!
+```
+
+### 📝 Working with enums
+
+By default, enums arn't supported by `json-as`. However, you can use a workaround:
+
+```typescript
+namespace Foo {
+  export const bar = "a";
+  export const baz = "b";
+  export const gob = "c";
+}
+
+type Foo = string;
+
+const serialized = JSON.stringify<Foo>(Foo.bar);
+// "a"
 ```
 
 ### ⚒️ Using custom serializers or deserializers

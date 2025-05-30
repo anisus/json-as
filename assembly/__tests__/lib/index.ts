@@ -13,7 +13,7 @@ export function expect<T>(left: T): Expectation {
   // @ts-ignore
   if (!isDefined(left.toString)) throw new Error("Expected left to have a toString method, but it does not.");
   // @ts-ignore
-  return new Expectation(left == null ? "null" : left.toString());
+  return new Expectation(isNull(left) ? "null" : left.toString());
 }
 
 class Expectation {
@@ -26,12 +26,16 @@ class Expectation {
     // @ts-ignore
     if (!isDefined(right.toString)) throw new Error("Expected right to have a toString method, but it does not.");
     // @ts-ignore
-    if (this.left != (right == null ? "null" : right.toString())) {
+    if (this.left != (isNull(right) ? "null" : right.toString())) {
       console.log("  " + currentDescription + "\n");
       // @ts-ignore
-      console.log("  (expected) -> " + (right == null ? "null" : right.toString()));
+      console.log("  (expected) -> " + (isNull(right) ? "null" : right.toString()));
       console.log("  (received) -> " + this.left);
       unreachable();
     }
   }
+}
+
+function isNull<T>(value: T): bool {
+  return (isInteger<T>() && !isSigned<T>() && nameof<T>() == "usize" && value == 0) || (isNullable<T>() && changetype<usize>(value) == <usize>0);
 }

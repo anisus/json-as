@@ -2,30 +2,11 @@
   "name": "json-as",
   "version": "1.1.14-preview.1",
   "author": "Jairus Tanaka",
-  "description": "The only JSON library you'll need for AssemblyScript. SIMD enabled",
-  "types": "assembly/index.ts",
-  "main": "transform/lib/index.js",
-  "homepage": "https://github.com/JairusSW/json-as#readme",
-  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/JairusSW/json-as.git"
   },
-  "bugs": {
-    "url": "https://github.com/JairusSW/json-as/issues"
-  },
-  "scripts": {
-    "ci": "act",
-    "test": "bash ./run-tests.sh",
-    "bench:as": "bash ./run-bench.as.sh",
-    "bench:js": "bash ./run-bench.js.sh",
-    "build:test": "rm -rf ./build/ && JSON_DEBUG=1 JSON_WRITE=assembly/test.ts asc assembly/test.ts --transform ./transform -o ./build/test.wasm --textFile ./build/test.wat --debug --config ./node_modules/@assemblyscript/wasi-shim/asconfig.json",
-    "test:wasmtime": "wasmtime ./build/test.wasm",
-    "test:wasmer": "wasmer ./build/test.wasm",
-    "build:transform": "tsc -p ./transform",
-    "bench:wasmer": "wasmer ./build/bench.wasm --llvm",
-    "prettier": "prettier -w ."
-  },
+  "main": "transform/lib/index.js",
   "devDependencies": {
     "@assemblyscript/wasi-shim": "^0.1.0",
     "@types/node": "^22.15.24",
@@ -34,6 +15,9 @@
     "prettier": "^3.5.3",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"
+  },
+  "bugs": {
+    "url": "https://github.com/JairusSW/json-as/issues"
   },
   "contributors": [
     "DogWhich",
@@ -47,6 +31,8 @@
     "Loredana Cirstea",
     "Accipiter Nisus"
   ],
+  "description": "The only JSON library you'll need for AssemblyScript. SIMD enabled",
+  "homepage": "https://github.com/JairusSW/json-as#readme",
   "keywords": [
     "assemblyscript",
     "json",
@@ -62,8 +48,23 @@
     "fast",
     "algorithm"
   ],
+  "license": "MIT",
   "publishConfig": {
     "@JairusSW:registry": "https://npm.pkg.github.com"
   },
-  "type": "module"
+  "scripts": {
+    "ci": "act",
+    "test": "bash ./run-tests.sh",
+    "bench:as": "bash ./run-bench.as.sh",
+    "bench:js": "bash ./run-bench.js.sh",
+    "build:test": "rm -rf ./build/ && JSON_DEBUG=1 JSON_WRITE=assembly/test.ts asc assembly/test.ts --transform ./transform -o ./build/test.wasm --textFile ./build/test.wat --debug --config ./node_modules/@assemblyscript/wasi-shim/asconfig.json",
+    "test:wasmtime": "wasmtime ./build/test.wasm",
+    "test:wasmer": "wasmer ./build/test.wasm",
+    "build:transform": "tsc -p ./transform",
+    "bench:wasmer": "wasmer ./build/bench.wasm --llvm",
+    "format": "prettier -w .",
+    "publish": "bash ./publish.sh"
+  },
+  "type": "module",
+  "types": "assembly/index.ts"
 }

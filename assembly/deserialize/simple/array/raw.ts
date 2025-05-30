@@ -99,7 +99,7 @@ export function deserializeRawArray(srcStart: usize, srcEnd: usize, dst: usize):
     } else if (isSpace(code)) {
       srcStart += 2;
     } else {
-      throw new Error("Unexpected character in JSON object '" + String.fromCharCode(code) + "' at position " + (srcEnd - srcStart).toString() + " " + ptrToStr(lastIndex, srcStart+10));
+      throw new Error("Unexpected character in JSON object '" + String.fromCharCode(code) + "' at position " + (srcEnd - srcStart).toString() + " " + ptrToStr(lastIndex, srcStart + 10));
     }
   }
   return out;

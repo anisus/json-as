@@ -12,13 +12,7 @@ let indent = "  ";
 let id = 0;
 const WRITE = process.env["JSON_WRITE"];
 const rawValue = process.env["JSON_DEBUG"];
-const DEBUG = rawValue === "true"
-    ? 1
-    : rawValue === "false" || rawValue === ""
-        ? 0
-        : isNaN(Number(rawValue))
-            ? 0
-            : Number(rawValue);
+const DEBUG = rawValue === "true" ? 1 : rawValue === "false" || rawValue === "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
 const STRICT = process.env["JSON_STRICT"] && process.env["JSON_STRICT"] == "true";
 class JSONTransform extends Visitor {
     static SN = new JSONTransform();
@@ -73,7 +67,7 @@ class JSONTransform extends Visitor {
                 if (depSearch) {
                     if (DEBUG > 0)
                         console.log("Found " + extendsName + " in dependencies of " + source.internalPath);
-                    if (!schema.deps.some(v => v.name == depSearch.name))
+                    if (!schema.deps.some((v) => v.name == depSearch.name))
                         schema.deps.push(depSearch);
                     schema.parent = depSearch;
                 }
@@ -88,7 +82,7 @@ class JSONTransform extends Visitor {
                             this.visitClassDeclaration(node);
                             return;
                         }
-                        const schem = this.schemas.get(internalSearch.range.source.internalPath)?.find(s => s.name == internalSearch.name.text);
+                        const schem = this.schemas.get(internalSearch.range.source.internalPath)?.find((s) => s.name == internalSearch.name.text);
                         if (!schem)
                             throw new Error("Could not find schema for " + internalSearch.name.text + " in " + internalSearch.range.source.internalPath);
                         schema.deps.push(schem);
@@ -105,7 +99,7 @@ class JSONTransform extends Visitor {
                                 this.visitClassDeclaration(node);
                                 return;
                             }
-                            const schem = this.schemas.get(externalSearch.range.source.internalPath)?.find(s => s.name == externalSearch.name.text);
+                            const schem = this.schemas.get(externalSearch.range.source.internalPath)?.find((s) => s.name == externalSearch.name.text);
                             if (!schem)
                                 throw new Error("Could not find schema for " + externalSearch.name.text + " in " + externalSearch.range.source.internalPath);
                             schema.deps.push(schem);
@@ -125,7 +119,7 @@ class JSONTransform extends Visitor {
         }
         const getUnknownTypes = (type, types = []) => {
             type = stripNull(type);
-            type = this.src.aliases.find(v => stripNull(v.name) == type)?.getBaseType() || type;
+            type = this.src.aliases.find((v) => stripNull(v.name) == type)?.getBaseType() || type;
             if (type.startsWith("Array<")) {
                 return getUnknownTypes(type.slice(6, -1));
             }
@@ -156,7 +150,7 @@ class JSONTransform extends Visitor {
                 if (depSearch) {
                     if (DEBUG > 0)
                         console.log("Found " + unknownType + " in dependencies of " + source.internalPath);
-                    if (!schema.deps.some(v => v.name == depSearch.name))
+                    if (!schema.deps.some((v) => v.name == depSearch.name))
                         schema.deps.push(depSearch);
                 }
                 else {
@@ -170,7 +164,7 @@ class JSONTransform extends Visitor {
                             this.visitClassDeclaration(node);
                             return;
                         }
-                        const schem = this.schemas.get(internalSearch.range.source.internalPath)?.find(s => s.name == internalSearch.name.text);
+                        const schem = this.schemas.get(internalSearch.range.source.internalPath)?.find((s) => s.name == internalSearch.name.text);
                         if (!schem)
                             throw new Error("Could not find schema for " + internalSearch.name.text + " in " + internalSearch.range.source.internalPath);
                         schema.deps.push(schem);
@@ -186,7 +180,7 @@ class JSONTransform extends Visitor {
                                 this.visitClassDeclaration(node);
                                 return;
                             }
-                            const schem = this.schemas.get(externalSearch.range.source.internalPath)?.find(s => s.name == externalSearch.name.text);
+                            const schem = this.schemas.get(externalSearch.range.source.internalPath)?.find((s) => s.name == externalSearch.name.text);
                             if (!schem)
                                 throw new Error("Could not find schema for " + externalSearch.name.text + " in " + externalSearch.range.source.internalPath);
                             schema.deps.push(schem);
@@ -258,7 +252,7 @@ class JSONTransform extends Visitor {
             if (!member.type)
                 throwError("Fields must be strongly typed", node.range);
             let type = toString(member.type);
-            type = this.src.aliases.find(v => stripNull(v.name) == stripNull(type))?.getBaseType() || type;
+            type = this.src.aliases.find((v) => stripNull(v.name) == stripNull(type))?.getBaseType() || type;
             const name = member.name;
             const value = member.initializer ? toString(member.initializer) : null;
             if (type.startsWith("(") && type.includes("=>"))
@@ -460,7 +454,7 @@ class JSONTransform extends Visitor {
         DESERIALIZE += indent + "          keyStart = lastIndex;\n";
         DESERIALIZE += indent + "          keyEnd = srcStart;\n";
         if (DEBUG > 1)
-            DESERIALIZE += indent + "          console.log(\"Key: \" + JSON.Util.ptrToStr(keyStart, keyEnd));\n";
+            DESERIALIZE += indent + '          console.log("Key: " + JSON.Util.ptrToStr(keyStart, keyEnd));\n';
         DESERIALIZE += indent + "          while (JSON.Util.isSpace((code = load<u16>((srcStart += 2))))) {}\n";
         DESERIALIZE += indent + "          if (code !== 58) throw new Error(\"Expected ':' after key at position \" + (srcEnd - srcStart).toString());\n";
         DESERIALIZE += indent + "          isKey = false;\n";
@@ -562,7 +556,7 @@ class JSONTransform extends Visitor {
             DESERIALIZE += "            const code = load<u16>(srcStart);\n";
             DESERIALIZE += "            if (code == 34 && load<u16>(srcStart - 2) !== 92) {\n";
             if (DEBUG > 1)
-                DESERIALIZE += "              console.log(\"Value (string, " + (++id) + "): \" + JSON.Util.ptrToStr(lastIndex, srcStart + 2));";
+                DESERIALIZE += '              console.log("Value (string, ' + ++id + '): " + JSON.Util.ptrToStr(lastIndex, srcStart + 2));';
             generateGroups(sortedMembers.string, (group) => {
                 generateConsts(group);
                 const first = group[0];
@@ -610,7 +604,7 @@ class JSONTransform extends Visitor {
             DESERIALIZE += "          const code = load<u16>(srcStart);\n";
             DESERIALIZE += "          if (code == 44 || code == 125 || JSON.Util.isSpace(code)) {\n";
             if (DEBUG > 1)
-                DESERIALIZE += "              console.log(\"Value (number, " + (++id) + "): \" + JSON.Util.ptrToStr(lastIndex, srcStart));";
+                DESERIALIZE += '              console.log("Value (number, ' + ++id + '): " + JSON.Util.ptrToStr(lastIndex, srcStart));';
             generateGroups(sortedMembers.number, (group) => {
                 generateConsts(group);
                 const first = group[0];
@@ -664,7 +658,7 @@ class JSONTransform extends Visitor {
             DESERIALIZE += "            if (--depth == 0) {\n";
             DESERIALIZE += "              srcStart += 2;\n";
             if (DEBUG > 1)
-                DESERIALIZE += "              console.log(\"Value (object, " + (++id) + "): \" + JSON.Util.ptrToStr(lastIndex, srcStart));";
+                DESERIALIZE += '              console.log("Value (object, ' + ++id + '): " + JSON.Util.ptrToStr(lastIndex, srcStart));';
             indent = "  ";
             generateGroups(sortedMembers.object, (group) => {
                 generateConsts(group);
@@ -718,7 +712,7 @@ class JSONTransform extends Visitor {
             DESERIALIZE += "            if (--depth == 0) {\n";
             DESERIALIZE += "              srcStart += 2;\n";
             if (DEBUG > 1)
-                DESERIALIZE += "              console.log(\"Value (object, " + (++id) + "): \" + JSON.Util.ptrToStr(lastIndex, srcStart));";
+                DESERIALIZE += '              console.log("Value (object, ' + ++id + '): " + JSON.Util.ptrToStr(lastIndex, srcStart));';
             indent = "  ";
             generateGroups(sortedMembers.array, (group) => {
                 generateConsts(group);
@@ -763,7 +757,7 @@ class JSONTransform extends Visitor {
             DESERIALIZE += "        if (load<u64>(srcStart) == 28429475166421108) {\n";
             DESERIALIZE += "          srcStart += 8;\n";
             if (DEBUG > 1)
-                DESERIALIZE += "              console.log(\"Value (bool, " + (++id) + "): \" + JSON.Util.ptrToStr(lastIndex, srcStart - 8));";
+                DESERIALIZE += '              console.log("Value (bool, ' + ++id + '): " + JSON.Util.ptrToStr(lastIndex, srcStart - 8));';
             generateGroups(sortedMembers.boolean, (group) => {
                 generateConsts(group);
                 const first = group[0];
@@ -807,7 +801,7 @@ class JSONTransform extends Visitor {
             DESERIALIZE += "        if (load<u64>(srcStart, 2) == 28429466576093281) {\n";
             DESERIALIZE += "          srcStart += 10;\n";
             if (DEBUG > 1)
-                DESERIALIZE += "              console.log(\"Value (bool, " + (++id) + "): \" + JSON.Util.ptrToStr(lastIndex, srcStart - 10));";
+                DESERIALIZE += '              console.log("Value (bool, ' + ++id + '): " + JSON.Util.ptrToStr(lastIndex, srcStart - 10));';
             generateGroups(sortedMembers.boolean, (group) => {
                 generateConsts(group);
                 const first = group[0];
@@ -853,7 +847,7 @@ class JSONTransform extends Visitor {
             DESERIALIZE += "        if (load<u64>(srcStart) == 30399761348886638) {\n";
             DESERIALIZE += "          srcStart += 8;\n";
             if (DEBUG > 1)
-                DESERIALIZE += "              console.log(\"Value (null, " + (++id) + "): \" + JSON.Util.ptrToStr(lastIndex, srcStart - 8));";
+                DESERIALIZE += '              console.log("Value (null, ' + ++id + '): " + JSON.Util.ptrToStr(lastIndex, srcStart - 8));';
             generateGroups(sortedMembers.null, (group) => {
                 generateConsts(group);
                 const first = group[0];
@@ -960,49 +954,31 @@ class JSONTransform extends Visitor {
         const pkgPath = path.join(this.baseCWD, "node_modules");
         const isLibrary = existsSync(path.join(pkgPath, "json-as"));
         let fromPath = node.range.source.normalizedPath;
-        fromPath = fromPath.startsWith("~lib/")
-            ? existsSync(path.join(pkgPath, fromPath.slice(5, fromPath.indexOf("/", 5))))
-                ? path.join(pkgPath, fromPath.slice(5))
-                : fromPath
-            : path.join(this.baseCWD, fromPath);
+        fromPath = fromPath.startsWith("~lib/") ? (existsSync(path.join(pkgPath, fromPath.slice(5, fromPath.indexOf("/", 5)))) ? path.join(pkgPath, fromPath.slice(5)) : fromPath) : path.join(this.baseCWD, fromPath);
         const bsImport = this.imports.find((i) => i.declarations?.find((d) => d.foreignName.text == "bs" || d.name.text == "bs"));
         const jsonImport = this.imports.find((i) => i.declarations?.find((d) => d.foreignName.text == "JSON" || d.name.text == "JSON"));
-        let bsRel = removeExtension(path.posix.join(...path
-            .relative(path.dirname(fromPath), path.join(baseDir, "lib", "as-bs"))
-            .split(path.sep)));
-        let jsRel = removeExtension(path.posix.join(...path
-            .relative(path.dirname(fromPath), path.join(baseDir, "assembly", "index"))
-            .split(path.sep)));
+        let bsRel = removeExtension(path.posix.join(...path.relative(path.dirname(fromPath), path.join(baseDir, "lib", "as-bs")).split(path.sep)));
+        let jsRel = removeExtension(path.posix.join(...path.relative(path.dirname(fromPath), path.join(baseDir, "assembly", "index")).split(path.sep)));
         if (bsRel.includes("node_modules" + path.sep + "json-as")) {
-            bsRel =
-                "json-as" +
-                    bsRel.slice(bsRel.indexOf("node_modules" + path.sep + "json-as") + 20);
+            bsRel = "json-as" + bsRel.slice(bsRel.indexOf("node_modules" + path.sep + "json-as") + 20);
         }
-        else if (!bsRel.startsWith(".") &&
-            !bsRel.startsWith("/") &&
-            !bsRel.startsWith("json-as")) {
+        else if (!bsRel.startsWith(".") && !bsRel.startsWith("/") && !bsRel.startsWith("json-as")) {
             bsRel = "./" + bsRel;
         }
         if (jsRel.includes("node_modules" + path.sep + "json-as")) {
-            jsRel =
-                "json-as" +
-                    jsRel.slice(jsRel.indexOf("node_modules" + path.sep + "json-as") + 20);
+            jsRel = "json-as" + jsRel.slice(jsRel.indexOf("node_modules" + path.sep + "json-as") + 20);
         }
-        else if (!jsRel.startsWith(".") &&
-            !jsRel.startsWith("/") &&
-            !jsRel.startsWith("json-as")) {
+        else if (!jsRel.startsWith(".") && !jsRel.startsWith("/") && !jsRel.startsWith("json-as")) {
             jsRel = "./" + jsRel;
         }
         if (!bsImport) {
-            const replaceNode = Node.createImportStatement([Node.createImportDeclaration(Node.createIdentifierExpression("bs", node.range, false), null, node.range)
-            ], Node.createStringLiteralExpression(bsRel, node.range), node.range);
+            const replaceNode = Node.createImportStatement([Node.createImportDeclaration(Node.createIdentifierExpression("bs", node.range, false), null, node.range)], Node.createStringLiteralExpression(bsRel, node.range), node.range);
             node.range.source.statements.unshift(replaceNode);
             if (DEBUG > 0)
                 console.log("Added import: " + toString(replaceNode) + " to " + node.range.source.normalizedPath + "\n");
         }
         if (!jsonImport) {
-            const replaceNode = Node.createImportStatement([Node.createImportDeclaration(Node.createIdentifierExpression("JSON", node.range, false), null, node.range)
-            ], Node.createStringLiteralExpression(jsRel, node.range), node.range);
+            const replaceNode = Node.createImportStatement([Node.createImportDeclaration(Node.createIdentifierExpression("JSON", node.range, false), null, node.range)], Node.createStringLiteralExpression(jsRel, node.range), node.range);
             node.range.source.statements.unshift(replaceNode);
             if (DEBUG > 0)
                 console.log("Added import: " + toString(replaceNode) + " to " + node.range.source.normalizedPath + "\n");

@@ -55,5 +55,4 @@ export class TypeAlias {
 
     return [...this.aliases.values()];
   }
-
 }

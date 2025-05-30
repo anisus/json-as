@@ -106,14 +106,14 @@ describe("Should deserialize raw arrays", () => {
   expect(r2[0][1].toString()).toBe('{"x":3.4,"y":-2.1,"z":9.3}');
   expect(r2[1][0].toString()).toBe('{"x":0.1,"y":-7.3,"z":4.5}');
 
-  const r3 = JSON.parse<JSON.Raw[]>('[1,2,3,4,5]');
+  const r3 = JSON.parse<JSON.Raw[]>("[1,2,3,4,5]");
   expect(r3[0]).toBe(1);
   expect(r3[1]).toBe(2);
   expect(r3[2]).toBe(3);
   expect(r3[3]).toBe(4);
   expect(r3[4]).toBe(5);
 
-  const r4 = JSON.parse<JSON.Raw[][]>('[[1,2,3,4,5],[6,7,8,9,10]]');
+  const r4 = JSON.parse<JSON.Raw[][]>("[[1,2,3,4,5],[6,7,8,9,10]]");
   expect(r4[0][0]).toBe(1);
   expect(r4[0][1]).toBe(2);
   expect(r4[0][2]).toBe(3);
@@ -125,16 +125,17 @@ describe("Should deserialize raw arrays", () => {
   expect(r4[1][2]).toBe(8);
   expect(r4[1][3]).toBe(9);
   expect(r4[1][4]).toBe(10);
-  
+
   const r5 = JSON.parse<JSON.Raw[]>('[{"x":3.4,"y":1.2,"z":8.3},[1,2,3,4,5],"12345",true,false,null,[[]]]');
   expect(r5[0].toString()).toBe('{"x":3.4,"y":1.2,"z":8.3}');
-  expect(r5[1].toString()).toBe('[1,2,3,4,5]');
+  expect(r5[1].toString()).toBe("[1,2,3,4,5]");
   expect(r5[2]).toBe('"12345"');
   expect(r5[3]).toBe(true);
   expect(r5[4]).toBe(false);
   expect(r5[5]).toBe(null);
-  expect(r5[6].toString()).toBe('[[]]');
+  expect(r5[6].toString()).toBe("[[]]");
 });
+
 
 @json
 class Vec3 {

@@ -1,14 +1,20 @@
 import { JSON } from ".";
 import { Vec3 } from "./types";
 
+
 @json
 class Player {
+
   @alias("first name")
   firstName!: string;
   lastName!: string;
   lastActive!: i32[];
+
+
   @omitif((self: Player) => self.age < 18)
   age!: i32;
+
+
   @omitnull()
   pos!: Vec3 | null;
   isVerified!: boolean;
@@ -30,4 +36,4 @@ const player: Player = {
 const serialized = JSON.stringify(player);
 console.log("Serialized: " + serialized);
 const deserialized = JSON.parse<Player>(serialized);
-console.log("Deserialized: " + JSON.stringify(deserialized))
+console.log("Deserialized: " + JSON.stringify(deserialized));

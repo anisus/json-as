@@ -24,7 +24,7 @@ export function deserializeArray<T extends unknown[]>(srcStart: usize, srcEnd: u
   } else if (isFloat<valueof<T>>()) {
     // @ts-ignore
     return deserializeFloatArray<T>(srcStart, srcEnd, dst);
-  } else if (isArrayLike<valueof<T>>()) {
+  } else if (isArray<valueof<T>>()) {
     // @ts-ignore: type
     return deserializeArrayArray<T>(srcStart, srcEnd, dst);
   } else if (isManaged<valueof<T>>() || isReference<valueof<T>>()) {

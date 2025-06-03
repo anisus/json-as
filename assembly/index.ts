@@ -131,7 +131,7 @@ export namespace JSON {
       memory.copy(changetype<usize>(out) + 2, changetype<usize>(data.toISOString()), 48);
       store<u16>(changetype<usize>(out), QUOTE, 50);
       return changetype<string>(out);
-    } else if (data instanceof Array) {
+    } else if (data instanceof Array || data instanceof StaticArray) {
       // @ts-ignore
       inline.always(serializeArray(changetype<nonnull<T>>(data)));
       return bs.out<string>();
@@ -332,13 +332,6 @@ export namespace JSON {
         this.type = JSON.Types.Struct;
         store<T>(changetype<usize>(this), value, STORAGE);
         // @ts-ignore: supplied by transform
-      } else if (isDefined(value.__SERIALIZE_CUSTOM)) {
-        this.type = idof<T>() + JSON.Types.Struct;
-        // @ts-ignore
-        if (!JSON.Value.METHODS.has(idof<T>())) JSON.Value.METHODS.set(idof<T>(), value.__SERIALIZE_CUSTOM.index);
-        // @ts-ignore
-        store<usize>(changetype<usize>(this), changetype<usize>(value), STORAGE);
-        // @ts-ignore: supplied by transform
       } else if (isDefined(value.__SERIALIZE)) {
         this.type = idof<T>() + JSON.Types.Struct;
         // @ts-ignore
@@ -361,6 +354,15 @@ export namespace JSON {
      * @returns The encapsulated value.
      */
     @inline get<T>(): T {
+      return load<T>(changetype<usize>(this), STORAGE);
+    }
+
+    /**
+     * Gets the value of the JSON.Value instance.
+     * Alias for .get<T>()
+     * @returns The encapsulated value.
+     */
+    @inline as<T>(): T {
       return load<T>(changetype<usize>(this), STORAGE);
     }
 
@@ -552,7 +554,7 @@ export namespace JSON {
     } else if (src instanceof Date) {
       // @ts-ignore
       inline.always(serializeDate(changetype<nonnull<T>>(src)));
-    } else if (src instanceof Array) {
+    } else if (src instanceof Array || src instanceof StaticArray) {
       // @ts-ignore
       serializeArray(changetype<nonnull<T>>(src));
     } else if (src instanceof Map) {
@@ -733,7 +735,7 @@ export namespace JSON {
         memory.copy(changetype<usize>(out) + 2, changetype<usize>(data.toISOString()), 48);
         store<u16>(changetype<usize>(out), QUOTE, 50);
         return changetype<string>(out);
-      } else if (data instanceof Array) {
+      } else if (data instanceof Array || data instanceof StaticArray) {
         bs.saveState();
         // @ts-ignore
         inline.always(serializeArray(changetype<nonnull<T>>(data)));

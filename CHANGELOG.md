@@ -2,6 +2,9 @@
 
 ## UNRELEASED
 
+- feat: add `.as<T>()` method to `JSON.Value`
+- chore: remove all references to `__SERIALIZE_CUSTOM`
+- feat: add support for `StaticArray` serialization
 - feat: support `JSON.Raw` in array types
 - tests: add tests for `JSON.Raw[]`
 - tests: properly support nulls (in testing lib)

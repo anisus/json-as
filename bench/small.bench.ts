@@ -1,4 +1,4 @@
-import { bench } from "./lib/bench";
+import { bench } from "./lib/bench.js";
 
 class SmallJSON {
   public id!: number;

@@ -5,7 +5,7 @@ import { OBJECT, TOTAL_OVERHEAD } from "rt/common";
  */
 export namespace bs {
   /** Current buffer pointer. */ // @ts-ignore
-  export let buffer: ArrayBuffer = new ArrayBuffer(32);//__new(32, idof<ArrayBuffer>());
+  export let buffer: ArrayBuffer = new ArrayBuffer(32); //__new(32, idof<ArrayBuffer>());
 
   /** Current offset within the buffer. */
   export let offset: usize = changetype<usize>(buffer);
@@ -15,6 +15,39 @@ export namespace bs {
 
   /** Proposed size of output */
   export let stackSize: usize = 0;
+
+  let pauseOffset: usize = 0;
+  let pauseStackSize: usize = 0;
+
+  /**
+   * Stores the state of the buffer, allowing further changes to be reset
+   */
+  // @ts-ignore: decorator
+  @inline export function saveState(): void {
+    pauseOffset = offset;
+    pauseStackSize = stackSize;
+  }
+
+  /**
+   * Resets the buffer to the state it was in when `pause()` was called.
+   * This allows for changes made after the pause to be discarded.
+   */
+  // @ts-ignore: decorator
+  @inline export function loadState(): void {
+    offset = pauseOffset;
+    stackSize = pauseStackSize;
+  }
+
+  /**
+   * Resets the buffer to the state it was in when `pause()` was called.
+   * This allows for changes made after the pause to be discarded.
+   */
+  // @ts-ignore: decorator
+  @inline export function resetState(): void {
+    offset = pauseOffset;
+    stackSize = pauseStackSize;
+    pauseOffset = 0;
+  }
 
   /**
    * Proposes that the buffer size is should be greater than or equal to the proposed size.
@@ -28,10 +61,7 @@ export namespace bs {
       const deltaBytes = nextPowerOf2(size + 64);
       bufferSize += deltaBytes;
       // @ts-ignore: exists
-      const newPtr = changetype<ArrayBuffer>(__renew(
-        changetype<usize>(buffer),
-        bufferSize
-      ));
+      const newPtr = changetype<ArrayBuffer>(__renew(changetype<usize>(buffer), bufferSize));
       offset = offset + changetype<usize>(newPtr) - changetype<usize>(buffer);
       buffer = newPtr;
     }
@@ -49,10 +79,7 @@ export namespace bs {
       const deltaBytes = nextPowerOf2(size);
       bufferSize += deltaBytes;
       // @ts-ignore: exists
-      const newPtr = changetype<ArrayBuffer>(__renew(
-        changetype<usize>(buffer),
-        bufferSize
-      ));
+      const newPtr = changetype<ArrayBuffer>(__renew(changetype<usize>(buffer), bufferSize));
       offset = offset + changetype<usize>(newPtr) - changetype<usize>(buffer);
       buffer = newPtr;
     }
@@ -70,10 +97,7 @@ export namespace bs {
       const deltaBytes = nextPowerOf2(size + 64);
       bufferSize += deltaBytes;
       // @ts-ignore
-      const newPtr = changetype<ArrayBuffer>(__renew(
-        changetype<usize>(buffer),
-        bufferSize
-      ));
+      const newPtr = changetype<ArrayBuffer>(__renew(changetype<usize>(buffer), bufferSize));
       // if (buffer != newPtr) console.log("  Old: " + changetype<usize>(buffer).toString() + "\n  New: " + changetype<usize>(newPtr).toString());
       offset = offset + changetype<usize>(newPtr) - changetype<usize>(buffer);
       buffer = newPtr;
@@ -92,6 +116,28 @@ export namespace bs {
     offset = changetype<usize>(newPtr);
     buffer = newPtr;
     stackSize = 0;
+  }
+
+  /**
+   * Copies the buffer's content to a new object of a specified type. Does not shrink the buffer.
+   * @returns The new object containing the buffer's content.
+   */
+  // @ts-ignore: Decorator valid here
+  @inline export function cpyOut<T>(): T {
+    if (pauseOffset == 0) {
+      const len = offset - changetype<usize>(buffer);
+      // @ts-ignore: exists
+      const _out = __new(len, idof<T>());
+      memory.copy(_out, changetype<usize>(buffer), len);
+      return changetype<T>(_out);
+    } else {
+      const len = offset - pauseOffset;
+      // @ts-ignore: exists
+      const _out = __new(len, idof<T>());
+      memory.copy(_out, pauseOffset, len);
+      bs.loadState();
+      return changetype<T>(_out);
+    }
   }
 
   /**

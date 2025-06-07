@@ -1,5 +1,6 @@
 import { JSON } from "..";
-import { bench } from "../custom/bench";
+import { expect } from "../__tests__/lib";
+import { bench } from "./lib/bench";
 
 
 @json
@@ -15,6 +16,8 @@ const v1: SmallJSON = {
   active: true,
 };
 const v2 = '{"id":1,"name":"Small Object","active":true}';
+
+expect(JSON.stringify(v1)).toBe(v2);
 
 bench(
   "Serialize Small Object",

@@ -59,8 +59,8 @@ describe("Should serialize object arrays", () => {
 });
 
 describe("Should deserialize integer arrays", () => {
-  expect(JSON.stringify(JSON.parse<u32[]>("[0,100,101]"))).toBe('[0,100,101]');
-  expect(JSON.stringify(JSON.parse<u64[]>("[0,100,101]"))).toBe('[0,100,101]');
+  expect(JSON.stringify(JSON.parse<u32[]>("[0,100,101]"))).toBe("[0,100,101]");
+  expect(JSON.stringify(JSON.parse<u64[]>("[0,100,101]"))).toBe("[0,100,101]");
   expect(JSON.stringify(JSON.parse<i32[]>("[0,100,101,-100,-101]"))).toBe("[0,100,101,-100,-101]");
   expect(JSON.stringify(JSON.parse<i64[]>("[0,100,101,-100,-101]"))).toBe("[0,100,101,-100,-101]");
 });
@@ -76,7 +76,7 @@ describe("Should deserialize boolean arrays", () => {
 });
 
 describe("Should deserialize string arrays", () => {
-  expect(JSON.stringify(JSON.parse<string[]>("[\"string \\\"with random spa\\nces and \\nnewlines\\n\\n\\n\"]"))).toBe("[\"string \\\"with random spa\\nces and \\nnewlines\\n\\n\\n\"]");
+  expect(JSON.stringify(JSON.parse<string[]>('["string \\"with random spa\\nces and \\nnewlines\\n\\n\\n"]'))).toBe('["string \\"with random spa\\nces and \\nnewlines\\n\\n\\n"]');
 });
 
 describe("Should deserialize nested integer arrays", () => {
@@ -93,12 +93,49 @@ describe("Should deserialize nested boolean arrays", () => {
 });
 
 describe("Should deserialize object arrays", () => {
-  expect(
-    JSON.stringify(JSON.parse<Vec3[]>(
-      '[{"x":3.4,"y":1.2,"z":8.3},{"x":3.4,"y":-2.1,"z":9.3}]'
-    )
-  )).toBe('[{"x":3.4,"y":1.2,"z":8.3},{"x":3.4,"y":-2.1,"z":9.3}]');
+  expect(JSON.stringify(JSON.parse<Vec3[]>('[{"x":3.4,"y":1.2,"z":8.3},{"x":3.4,"y":-2.1,"z":9.3}]'))).toBe('[{"x":3.4,"y":1.2,"z":8.3},{"x":3.4,"y":-2.1,"z":9.3}]');
 });
+
+describe("Should deserialize raw arrays", () => {
+  const r1 = JSON.parse<JSON.Raw[]>('[{"x":3.4,"y":1.2,"z":8.3},{"x":3.4,"y":-2.1,"z":9.3}]');
+  expect(r1[0].toString()).toBe('{"x":3.4,"y":1.2,"z":8.3}');
+  expect(r1[1].toString()).toBe('{"x":3.4,"y":-2.1,"z":9.3}');
+
+  const r2 = JSON.parse<JSON.Raw[][]>('[[{"x":3.4,"y":1.2,"z":8.3},{"x":3.4,"y":-2.1,"z":9.3}],[{"x":0.1,"y":-7.3,"z":4.5}]]');
+  expect(r2[0][0].toString()).toBe('{"x":3.4,"y":1.2,"z":8.3}');
+  expect(r2[0][1].toString()).toBe('{"x":3.4,"y":-2.1,"z":9.3}');
+  expect(r2[1][0].toString()).toBe('{"x":0.1,"y":-7.3,"z":4.5}');
+
+  const r3 = JSON.parse<JSON.Raw[]>("[1,2,3,4,5]");
+  expect(r3[0]).toBe(1);
+  expect(r3[1]).toBe(2);
+  expect(r3[2]).toBe(3);
+  expect(r3[3]).toBe(4);
+  expect(r3[4]).toBe(5);
+
+  const r4 = JSON.parse<JSON.Raw[][]>("[[1,2,3,4,5],[6,7,8,9,10]]");
+  expect(r4[0][0]).toBe(1);
+  expect(r4[0][1]).toBe(2);
+  expect(r4[0][2]).toBe(3);
+  expect(r4[0][3]).toBe(4);
+  expect(r4[0][4]).toBe(5);
+
+  expect(r4[1][0]).toBe(6);
+  expect(r4[1][1]).toBe(7);
+  expect(r4[1][2]).toBe(8);
+  expect(r4[1][3]).toBe(9);
+  expect(r4[1][4]).toBe(10);
+
+  const r5 = JSON.parse<JSON.Raw[]>('[{"x":3.4,"y":1.2,"z":8.3},[1,2,3,4,5],"12345",true,false,null,[[]]]');
+  expect(r5[0].toString()).toBe('{"x":3.4,"y":1.2,"z":8.3}');
+  expect(r5[1].toString()).toBe("[1,2,3,4,5]");
+  expect(r5[2]).toBe('"12345"');
+  expect(r5[3]).toBe(true);
+  expect(r5[4]).toBe(false);
+  expect(r5[5]).toBe(null);
+  expect(r5[6].toString()).toBe("[[]]");
+});
+
 
 @json
 class Vec3 {

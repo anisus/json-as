@@ -1,5 +1,6 @@
 import { JSON } from "..";
-import { bench } from "../custom/bench";
+import { expect } from "../__tests__/lib";
+import { bench } from "./lib/bench";
 
 
 @json
@@ -29,12 +30,14 @@ const v1: MediumJSON = {
 
 const v2 = `{"id":2,"name":"Medium Object","age":18,"email":"me@jairus.dev","street":"I don't want to say my street","city":"I don't want to say this either","state":"It really depends","zip":"I forget what it is","tags":["me","dogs","mountains","bar","foo"]}`;
 
+expect(JSON.stringify(v1)).toBe(v2);
+
 bench(
   "Serialize Medium Object",
   () => {
     JSON.stringify(v1);
   },
-  8_000_00,
+  6_000_00,
 );
 
 bench(
@@ -42,5 +45,5 @@ bench(
   () => {
     JSON.parse<MediumJSON>(v2);
   },
-  8_000_00,
+  6_000_00,
 );

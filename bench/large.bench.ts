@@ -1,4 +1,4 @@
-import { bench } from "./lib/bench";
+import { bench } from "./lib/bench.js";
 
 class Vec3 {
   public x!: number;
@@ -110,7 +110,7 @@ const v1: LargeJSON = {
 const v2 = `{"id":2,"name":"Medium Object","age":18,"email":"me@jairus.dev","street":"I don't want to say my street","city":"I don't want to say this either","state":"It really depends","zip":"I forget what it is","tags":["me","dogs","mountains","bar","foo"],"theme":"Hyper Term Black","notifications":true,"language":"en-US","movement":[{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3},{"x":1,"y":2,"z":3}]}`;
 
 bench(
-  "Serialize Medium Object",
+  "Serialize Large Object",
   () => {
     JSON.stringify(v1);
   },
@@ -118,7 +118,7 @@ bench(
 );
 
 bench(
-  "Deserialize Medium Object",
+  "Deserialize Large Object",
   () => {
     JSON.parse(v2);
   },

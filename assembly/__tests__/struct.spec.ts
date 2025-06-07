@@ -53,26 +53,26 @@ describe("Should ignore properties decorated with @omit", () => {
 });
 
 describe("Should deserialize structs", () => {
-  expect(
-    JSON.stringify(JSON.parse<Vec3>('{"x":3.4,"y":1.2,"z":8.3}')),
-  ).toBe('{"x":3.4,"y":1.2,"z":8.3}');
+  expect(JSON.stringify(JSON.parse<Vec3>('{"x":3.4,"y":1.2,"z":8.3}'))).toBe('{"x":3.4,"y":1.2,"z":8.3}');
+  expect(JSON.stringify(JSON.parse<Vec3>('{"x":3.4,"a":1.3,"y":1.2,"z":8.3}'))).toBe('{"x":3.4,"y":1.2,"z":8.3}');
+  expect(JSON.stringify(JSON.parse<Vec3>('{"x":3.4,"a":1.3,"y":123,"asdf":3453204,"boink":[],"y":1.2,"z":8.3}'))).toBe('{"x":3.4,"y":1.2,"z":8.3}');
 });
 
 describe("Should deserialize structs with whitespace", () => {
-  expect(
-    JSON.stringify(JSON.parse<Vec3>('    {  "x"  :  3.4  ,  "y"  :  1.2    ,  "z"   :  8.3   }   ')),
-  ).toBe('{"x":3.4,"y":1.2,"z":8.3}');
+  expect(JSON.stringify(JSON.parse<Vec3>('    {  "x"  :  3.4  ,  "y"  :  1.2    ,  "z"   :  8.3   }   '))).toBe('{"x":3.4,"y":1.2,"z":8.3}');
 });
 
 describe("Should deserialize structs with nullable properties", () => {
-  expect(
-    JSON.stringify(JSON.parse<NullableObj>('{"bar":{"value":"test"}}'))
-  ).toBe('{"bar":{"value":"test"}}');
+  expect(JSON.stringify(JSON.parse<NullableObj>('{"bar":{"value":"test"}}'))).toBe('{"bar":{"value":"test"}}');
 
-  expect(
-    JSON.stringify(JSON.parse<NullableObj>('{"bar":null}'))
-  ).toBe('{"bar":null}');
-})
+  expect(JSON.stringify(JSON.parse<NullableObj>('{"bar":null}'))).toBe('{"bar":null}');
+});
+
+describe("Should deserialize structs with nullable arrays in properties", () => {
+  expect(JSON.stringify(JSON.parse<NullableArrayObj>('{"bars":[{"value":"test"}]}'))).toBe('{"bars":[{"value":"test"}]}');
+
+  expect(JSON.stringify(JSON.parse<NullableArrayObj>('{"bars":null}'))).toBe('{"bars":null}');
+});
 
 // describe("Should serialize Suite struct", () => {
 
@@ -118,31 +118,44 @@ class Player {
 
 @json
 class ObjWithStrangeKey<T> {
+
   @alias('a\\\t"\x02b`c')
   data!: T;
 }
+
 
 @json
 class ObjectWithFloat {
   f!: f64;
 }
 
+
 @json
 class OmitIf {
   x: i32 = 1;
+
 
   @omitif("this.y == -1")
   y: i32 = -1;
   z: i32 = 1;
 
+
   @omitnull()
   foo: string | null = null;
 }
+
 
 @json
 class NullableObj {
   bar: Bar | null = null;
 }
+
+
+@json
+class NullableArrayObj {
+  bars: Bar[] | null = null;
+}
+
 
 @json
 class Bar {

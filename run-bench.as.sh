@@ -1,27 +1,53 @@
 #!/bin/bash
+RUNTIMES=${RUNTIMES:-"minimal stub"}
+ENGINES=${ENGINES:-"liftoff ignition sparkplug turbofan llvm"}
+for file in ./assembly/__benches__/large.bench.ts; do
+    filename=$(basename -- "$file")
+    output_wasi=
+    for runtime in $RUNTIMES; do
+        output="./build/${filename%.ts}.${runtime}.wasm"
 
-mkdir -p ./build
+        npx asc "$file" --transform ./transform -o "${output}.1" -O3 --converge --noAssert --uncheckedBehavior always --runtime $runtime --enable simd --enable bulk-memory --exportStart start || {
+            echo "Build failed"
+            exit 1
+        }
 
-for file in ./assembly/__benches__/*.bench.ts; do
-  filename=$(basename -- "$file")
-  output="./build/${filename%.ts}.wasm"
+        wasm-opt -all -O4 "${output}.1" -o "$output"
+        rm "${output}.1"
 
-  start_time=$(date +%s%3N)
-  npx asc "$file" --transform ./transform -o "$output" --optimizeLevel 3 --shrinkLevel 0 --converge --noAssert --uncheckedBehavior always --runtime stub --enable simd --enable bulk-memory || { echo "Build failed"; exit 1; }
-  end_time=$(date +%s%3N)
+        npx asc "$file" --transform ./transform -o "${output}.2" -O3 --converge --noAssert --uncheckedBehavior always --runtime $runtime --enable simd --enable bulk-memory --config ./node_modules/@assemblyscript/wasi-shim/asconfig.json || {
+            echo "Build failed"
+            exit 1
+        }
 
-  build_time=$((end_time - start_time))
+        wasm-opt -all -O4 "${output}.2" -o "${output%.wasm}.wasi.wasm"
+        rm "${output}.2"
 
-  if [ "$build_time" -ge 60000 ]; then
-    formatted_time="$(bc <<< "scale=2; $build_time/60000")m"
-  elif [ "$build_time" -ge 1000 ]; then
-    formatted_time="$(bc <<< "scale=2; $build_time/1000")s"
-  else
-    formatted_time="${build_time}ms"
-  fi
+        for engine in $ENGINES; do
+            echo -e "$filename (asc/$runtime/$engine)\n"
 
-  echo -e "$filename (built in $formatted_time)\n"
-  wasmer "$output" --llvm || { echo "Benchmarked failed."; exit 1; }
+            arg="${filename%.ts}.${runtime}.wasm"
+            if [[ "$engine" == "ignition" ]]; then
+                v8 --no-opt --module ./bench/runners/assemblyscript.js -- $arg
+            fi
+
+            if [[ "$engine" == "liftoff" ]]; then
+                v8 --liftoff-only --no-opt --module ./bench/runners/assemblyscript.js -- $arg
+            fi
+
+            if [[ "$engine" == "sparkplug" ]]; then
+                v8 --sparkplug --always-sparkplug --no-opt --module ./bench/runners/assemblyscript.js -- $arg
+            fi
+
+            if [[ "$engine" == "turbofan" ]]; then
+                v8 --no-liftoff --no-wasm-tier-up --module ./bench/runners/assemblyscript.js -- $arg
+            fi
+
+            if [[ "$engine" == "llvm" ]]; then
+                wasmer run "${output%.wasm}.wasi.wasm" --llvm --enable-simd --enable-bulk-memory --enable-relaxed-simd --enable-pass-params-opt
+            fi
+        done
+    done
 done
 
-echo "Finished benchmarks."
+echo "Finished benchmarks"

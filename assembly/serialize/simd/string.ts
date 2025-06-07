@@ -1,12 +1,7 @@
+import { bs } from "../../../lib/as-bs";
 import { BACK_SLASH } from "../../custom/chars";
 import { SERIALIZE_ESCAPE_TABLE } from "../../globals/tables";
-import { OBJECT, TOTAL_OVERHEAD } from "rt/common";
-
-const SPLAT_34 = i16x8.splat(34); /* " */
-const SPLAT_92 = i16x8.splat(92); /* \ */
-
-const SPLAT_32 = i16x8.splat(32); /* [ESC] */
-const SPLAT_0 = i16x8.splat(0); /* 0 */
+import { bytes } from "../../util";
 
 /**
  * Serializes strings into their JSON counterparts using SIMD operations
@@ -14,16 +9,23 @@ const SPLAT_0 = i16x8.splat(0); /* 0 */
  * @param srcEnd pointer to end serialization at
  */
 export function serializeString_SIMD(src: string): void {
-  const srcSize = changetype<OBJECT>(changetype<usize>(src) - TOTAL_OVERHEAD).rtSize;
+  const SPLAT_34 = i16x8.splat(34); /* " */
+  const SPLAT_92 = i16x8.splat(92); /* \ */
+
+  const SPLAT_32 = i16x8.splat(32); /* [ESC] */
+  const SPLAT_0 = i16x8.splat(0); /* 0 */
+
+  const srcSize = bytes(src);
   let srcStart = changetype<usize>(src);
   const srcEnd = srcStart + srcSize;
+  const srcEnd16 = srcEnd - 16;
+
   bs.proposeSize(srcSize + 4);
-  const srcEnd16 = srcEnd - 15;
 
   store<u8>(changetype<usize>(bs.offset), 34); /* " */
   bs.offset += 2;
 
-  while (srcStart < srcEnd16) {
+  while (srcStart <= srcEnd16) {
     const block = v128.load(srcStart);
     v128.store(bs.offset, block);
 
@@ -61,8 +63,7 @@ export function serializeString_SIMD(src: string): void {
     bs.offset += 16;
   }
 
-  let rem = srcEnd - srcStart;
-
+  const rem = srcEnd - srcStart;
   if (rem & 8) {
     const block = v128.load64_zero(srcStart);
     v128.store64_lane(bs.offset, block, 0);

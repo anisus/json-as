@@ -1,5 +1,127 @@
 # Change Log
 
+## UNRELEASED
+
+- feat: add `.as<T>()` method to `JSON.Value`
+- chore: remove all references to `__SERIALIZE_CUSTOM`
+- feat: add support for `StaticArray` serialization
+- feat: support `JSON.Raw` in array types
+- tests: add tests for `JSON.Raw[]`
+- tests: properly support nulls (in testing lib)
+
+## 2025-05-29 - 1.1.14
+
+- fix: hotfix schema resolver
+
+## 2025-05-29 - 1.1.13
+
+- fix: small issues with schema linking
+- tests: add tests for schema linking and discovery
+
+## 2025-05-29 - 1.1.12
+
+- fix: add helpful warning on unknown or unaccessible types in fields
+- feat: support deserialization of class generics
+- fix: add support for numerical generics
+- tests: add proper testing for generics
+- feat: support type aliases with a custom type resolver/linker
+- chore: add other linkers to tsconfig and clean up
+- feat: add type alias resolving
+
+## 2025-05-28 - 1.1.11
+
+- fix: class resolving should only search top level statements for class declarations
+- fix: add helpful error if class is missing an @json decorator
+- fix: properly calculate relative path when json-as is a library
+- fix: add proper null check when resolving imported classes
+
+## 2025-05-28 - 1.1.10
+
+- feat: add more debug levels (1 = print transform code, 2 = print keys/values at runtime)
+- feat: add write out feature (`JSON_WRITE=path-to-file.ts`) which writes out generated code
+- fix: complete full parity between port and original version for correct deserialization of all types
+- feat: add proper schema resolution and dependency resolution
+- feat: add proper type resolution to schema fields
+- fix: properly calculate the relative path between imports to modules
+
+## 2025-05-27 - 1.1.9
+
+- change: strict mode is disabled by default. Enable it with JSON_STRICT=true
+- fix: should ignore properties of same length and type if no matching key exists
+- fix: should ignore properties of different type if no matching key exists
+- fix: should ignore complex properties if no matching key exists
+
+## 2025-05-27 - 1.1.8
+
+- feat: add support for calling `JSON.stringify/JSON.parse` methods inside of custom serializers, but not yet deserializers
+
+## 2025-05-27 - 1.1.7
+
+- fix: bad boolean logic to decide whether to add 2nd break statement
+
+## 2025-05-23 - 1.1.6
+
+- fix: null and boolean fields would miscalculate offsets when deserializing
+
+## 2025-05-23 - 1.1.5
+
+- fix: index.js didn't point to correct file, thus creating a compiler crash
+
+## 2025-05-23 - 1.1.4
+
+- revert: grouping properties in favor of memory.compare
+
+## 2025-05-23 - 1.1.3
+
+- feat: group properties of structs before code generation
+- fix: break out of switch case after completion
+- ci: make compatible with act for local testing
+
+## 2025-05-22 - 1.1.2
+
+- fix: correct small typos in string value deserialization port
+
+## 2025-05-22 - 1.1.1
+
+- fix: remove random logs
+
+## 2025-05-22 - 1.1.0
+
+- fix: change _DESERIALIZE<T> to _JSON_T to avoid populating local scope
+
+## 2025-05-22 - 1.0.9
+
+- fix: [#132](https://github.com/JairusSW/json-as/issues/132)
+- feat: allow base classes to use their child classes if the signatures match
+- perf: rewrite struct deserialization to be significantly faster
+- fix: [#131](https://github.com/JairusSW/json-as/issues/131) Generic classes with custom deserializer crashing
+- fix: [#66](https://github.com/JairusSW/json-as/issues/66) Throw error when additional keys are in JSON
+
+## 2025-05-21 - 1.0.8
+
+- fix: inline warnings on layer-2 serialize and deserialize functions
+- feat: fully support `JSON.Obj` and `JSON.Box` everywhere
+- fix: temp disable SIMD
+- feat: write fair benchmarks with `v8` using `jsvu`
+
+## 2025-05-14 - 1.0.7
+
+- merge: pull request [#128](https://github.com/JairusSW/json-as/pull/128) from [loredanacirstea/nested-custom-serializer-fix](https://github.com/loredanacirstea/nested-custom-serializer-fix)
+
+## 2025-05-12 - 1.0.6
+
+- fix: support zero-param serialization and make sure types are consistent
+- fix: [#124](https://github.com/JairusSW/json-as/issues/124)
+
+## 2025-05-11 - 1.0.5
+
+- feat: add sanity checks for badly formatted strings
+- fix: [#120](https://github.com/JairusSW/json-as/issues/120) handle empty `JSON.Obj` serialization
+- feat: add SIMD optimization if SIMD is enabled by user
+- fix: handle structs with nullable array as property [#123](https://github.com/JairusSW/json-as/pull/123)
+- fix: struct serialization from writing to incorrect parts of memory when parsing nested structs [#125](https://github.com/JairusSW/json-as/pull/125)
+- chore: add two new contributors
+
 ## 2025-04-07 - 1.0.4
 
 - fix: paths must be resolved as POSIX in order to be valid TypeScript imports [#116](https://github.com/JairusSW/json-as/issues/116)

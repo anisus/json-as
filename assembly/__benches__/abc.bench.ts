@@ -1,21 +1,24 @@
 import { JSON } from "..";
-import { bench } from "../custom/bench";
+import { expect } from "../__tests__/lib";
+import { bench } from "./lib/bench";
 
 const v1 = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const v2 = '"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"';
 
+expect(JSON.stringify(v1)).toBe(v2);
+
 bench(
   "Serialize Alphabet",
   () => {
-    JSON.stringify(v1);
+    inline.always(JSON.stringify(v1));
   },
-  1_000_00,
+  64_000_00,
 );
 
 bench(
   "Deserialize Alphabet",
   () => {
-    JSON.parse<string>(v2);
+    inline.always(JSON.parse<string>(v2));
   },
-  1_000_00,
+  64_000_00,
 );

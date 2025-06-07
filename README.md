@@ -1,4 +1,4 @@
-<h5 align="center">
+<h6 align="center">
   <pre>
 <span style="font-size: 0.8em;">     ██ ███████  ██████  ███    ██        █████  ███████
      ██ ██      ██    ██ ████   ██       ██   ██ ██     
@@ -6,25 +6,13 @@
 ██   ██      ██ ██    ██ ██  ██ ██       ██   ██      ██
  █████  ███████  ██████  ██   ████       ██   ██ ███████
  </span>
-    AssemblyScript - v1.0.4
+    AssemblyScript - v1.1.15-preview.1
   </pre>
-</h5>
+</h6>
 
 ## 📝 About
 
 JSON is the de-facto serialization format of modern web applications, but its serialization and deserialization remain a significant performance bottleneck, especially at scale. Traditional parsing approaches are computationally expensive, adding unnecessary overhead to both clients and servers. This library is designed to mitigate this by leveraging SIMD acceleration and highly optimized transformations.
-
-## 🔭 What's new
-
-🔹Major performance improvements and addition of SIMD
-
-🔹Near zero-growth allocation design and low overhead
-
-🔹Support for custom serializer and deserializers
-
-🔹Fixes to many, many, bugs and edge cases
-
-🔹Support for dynamic objects, arrays, arbitrary values, and raw types
 
 ## 📚 Contents
 
@@ -35,8 +23,10 @@ JSON is the de-facto serialization format of modern web applications, but its se
   - [Nullable Primitives](#️-using-nullable-primitives)
   - [Unknown or Dynamic Data](#-working-with-unknown-or-dynamic-data)
   - [Using Raw JSON Strings](#️-using-raw-json-strings)
+  - [Using Enums](#️-working-with-enums)
   - [Custom Serializers](#️-using-custom-serializers-or-deserializers)
 - [Performance](#-performance)
+- [Debugging](#-debugging)
 - [License](#-license)
 - [Contact](#-contact)
 
@@ -69,12 +59,14 @@ If you'd like to see the code that the transform generates, run the build step w
 ```typescript
 import { JSON } from "json-as";
 
+
 @json
 class Vec3 {
   x: f32 = 0.0;
   y: f32 = 0.0;
   z: f32 = 0.0;
 }
+
 
 @json
 class Player {
@@ -101,7 +93,7 @@ const player: Player = {
     z: 8.3,
   },
   isVerified: true,
-}
+};
 
 const serialized = JSON.stringify<Player>(player);
 const deserialized = JSON.parse<Player>(serialized);
@@ -121,6 +113,7 @@ This library allows selective omission of fields during serialization using the 
 This decorator excludes a field from serialization entirely.
 
 ```typescript
+
 @json
 class Example {
   name!: string;
@@ -140,6 +133,7 @@ console.log(JSON.stringify(obj)); // { "name": "Jairus" }
 This decorator omits a field only if its value is null.
 
 ```typescript
+
 @json
 class Example {
   name!: string;
@@ -159,6 +153,7 @@ console.log(JSON.stringify(obj)); // { "name": "Jairus" }
 This decorator omits a field based on a custom predicate function.
 
 ```typescript
+
 @json
 class Example {
   name!: string;
@@ -186,6 +181,7 @@ AssemblyScript doesn't support using nullable primitive types, so instead, json-
 For example, this schema won't compile in AssemblyScript:
 
 ```typescript
+
 @json
 class Person {
   name!: string;
@@ -196,6 +192,7 @@ class Person {
 Instead, use `JSON.Box` to allow nullable primitives:
 
 ```typescript
+
 @json
 class Person {
   name: string;
@@ -239,11 +236,12 @@ When dealing with an object with an unknown structure, use the `JSON.Obj` type
 const obj = JSON.parse<JSON.Obj>('{"a":3.14,"b":true,"c":[1,2,3],"d":{"x":1,"y":2,"z":3}}');
 
 console.log("Keys: " + obj.keys().join(" ")); // a b c d
-console.log("Values: " +
-  obj
-    .values()
-    .map<string>((v) => JSON.stringify(v))
-    .join(" "),
+console.log(
+  "Values: " +
+    obj
+      .values()
+      .map<string>((v) => JSON.stringify(v))
+      .join(" "),
 ); // 3.14 true [1,2,3] {"x":1,"y":2,"z":3}
 
 const y = obj.get("d")!.get<JSON.Obj>().get("y")!;
@@ -257,6 +255,7 @@ More often, objects will be completely statically typed except for one or two va
 In such cases, `JSON.Value` can be used to handle fields that may hold different types at runtime.
 
 ```typescript
+
 @json
 class DynamicObj {
   id: i32 = 0;
@@ -304,6 +303,23 @@ console.log(JSON.stringify(map));
 // Now its properly formatted JSON where pos's value is of type Vec3 not string!
 ```
 
+### 📝 Working with enums
+
+By default, enums arn't supported by `json-as`. However, you can use a workaround:
+
+```typescript
+namespace Foo {
+  export const bar = "a";
+  export const baz = "b";
+  export const gob = "c";
+}
+
+type Foo = string;
+
+const serialized = JSON.stringify<Foo>(Foo.bar);
+// "a"
+```
+
 ### ⚒️ Using custom serializers or deserializers
 
 This library supports custom serialization and deserialization methods, which can be defined using the `@serializer` and `@deserializer` decorators.
@@ -312,6 +328,7 @@ Here's an example of creating a custom data type called `Point` which serializes
 
 ```typescript
 import { bytes } from "json-as/assembly/util";
+
 
 @json
 class Point {
@@ -356,8 +373,8 @@ The deserializer function parses the string `(x,y)` back into a `Point` instance
 These functions are then wrapped before being consumed by the json-as library:
 
 ```typescript
-@inline __SERIALIZE_CUSTOM(ptr: usize): void {
-  const data = this.serializer(changetype<Point>(ptr));
+@inline __SERIALIZE_CUSTOM(): void {
+  const data = this.serializer(this);
   const dataSize = data.length << 1;
   memory.copy(bs.offset, changetype<usize>(data), dataSize);
   bs.offset += dataSize;
@@ -382,11 +399,11 @@ These benchmarks compare this library to JavaScript's native `JSON.stringify` an
 
 | Test Case       | Size       | Serialization (ops/s) | Deserialization (ops/s) | Serialization (MB/s) | Deserialization (MB/s) |
 | --------------- | ---------- | --------------------- | ----------------------- | -------------------- | ---------------------- |
-| Vector3 Object  | 38 bytes   | 35,714,285 ops/s      | 35,435,552 ops/s        | 1,357 MB/s           | 1,348 MB/s             |
+| Vector3 Object  | 38 bytes   | 26,611,226 ops/s      | 32,160,804 ops/s        | 1,357 MB/s           | 1,348 MB/s             |
 | Alphabet String | 104 bytes  | 13,617,021 ops/s      | 18,390,804 ops/s        | 1,416 MB/s           | 1,986 MB/s             |
 | Small Object    | 88 bytes   | 24,242,424 ops/s      | 12,307,692 ops/s        | 2,133 MB/s           | 1,083 MB/s             |
 | Medium Object   | 494 bytes  | 4,060,913 ops/s       | 1,396,160 ops/s         | 2,006 MB/s           | 689.7 MB/s             |
-| Large Object    | 3374 bytes | 614,754 ops/s         | 132,802 ops/s           | 2,074 MB/s           | 448.0 MB/s             |
+| Large Object    | 3374 bytes | 479,616 ops/s         | 132,802 ops/s           | 2,074 MB/s           | 448.0 MB/s             |
 
 **Table 2** - _JavaScript (V8)_
 
@@ -403,6 +420,7 @@ These benchmarks compare this library to JavaScript's native `JSON.stringify` an
 - JSON-AS consistently outperforms JavaScript's native implementation.
 
 - **Serialization Speed:**
+
   - JSON-AS achieves speeds up to `2,133 MB/s`, significantly faster than JavaScript's peak of `1,416 MB/s`.
   - Large objects see the biggest improvement, with JSON-AS at `2,074 MB/s` vs. JavaScript’s `749.7 MB/s`.
 
@@ -445,6 +463,12 @@ These benchmarks compare this library to JavaScript's native `JSON.stringify` an
 - Generate optimized deserialization methods
 - Inline specific hot code paths
 - Implement error handling implementation
+
+## 🐛 Debugging
+
+`JSON_DEBUG=1` - Prints out generated code at compile-time
+`JSON_DEBUG=2` - The above and prints keys/values as they are deserialized
+`JSON_WRITE=path-to-file.ts` - Writes out generated code to `path-to-file.json.ts` for easy inspection
 
 ## 📃 License
 

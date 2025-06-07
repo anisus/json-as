@@ -1,9 +1,11 @@
-import { ClassDeclaration, Expression, FieldDeclaration } from "assemblyscript/dist/assemblyscript.js";
+import { ClassDeclaration, Expression, FieldDeclaration, Source } from "assemblyscript/dist/assemblyscript.js";
+import { TypeAlias } from "./linkers/alias.js";
 
 export enum PropertyFlags {
   OmitNull,
   OmitIf,
   Raw,
+  Custom,
 }
 
 export class Property {
@@ -14,6 +16,7 @@ export class Property {
   public flags: Map<PropertyFlags, Expression | null> = new Map<PropertyFlags, Expression | null>();
   public node!: FieldDeclaration;
   public byteSize: number = 0;
+  public generic: boolean = false;
 }
 
 export class Schema {
@@ -25,4 +28,17 @@ export class Schema {
   public needsLink: string | null = null;
   public byteSize: number = 0;
   public deps: Schema[] = [];
+  public custom: boolean = false;
+}
+
+export class Src {
+  public internalPath: string;
+  public schemas: Schema[];
+  public aliases: TypeAlias[];
+  public imports: Schema[];
+  public exports: Schema[];
+  constructor(source: Source) {
+    this.internalPath = source.internalPath;
+    this.aliases = TypeAlias.getAliases(source);
+  }
 }

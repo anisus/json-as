@@ -4,3 +4,6 @@ transform/lib
 
 # Tables
 assembly/globals/tables.ts
+
+# Markdown
+*.md

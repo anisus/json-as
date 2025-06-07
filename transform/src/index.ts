@@ -178,7 +178,7 @@ export class JSONTransform extends Visitor {
             if (externalSearch) {
               if (DEBUG > 0) console.log("Found " + externalSearch.name.text + " externally from " + source.internalPath);
               if (!this.visitedClasses.has(externalSearch.range.source.internalPath + externalSearch.name.text)) {
-                this.visitClassDeclarationRef(externalSearch)
+                this.visitClassDeclarationRef(externalSearch);
                 const externalSchema = this.schemas.get(externalSearch.range.source.internalPath)?.find((s) => s.name == externalSearch.name.text);
                 schema.deps.push(externalSchema);
                 this.schemas.get(externalSearch.range.source.internalPath).push(this.schema);

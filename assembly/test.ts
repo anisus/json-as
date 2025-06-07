@@ -1,39 +1,72 @@
-import { JSON } from ".";
-import { Vec3 } from "./types";
-
+import { JSON } from "."
 
 @json
-class Player {
+class GenericEnum<T> {
+  private tag: string = ""
+  private value: T | null = null
 
-  @alias("first name")
-  firstName!: string;
-  lastName!: string;
-  lastActive!: i32[];
+  constructor() {
+    this.tag = ""
+    this.value = null
+  }
 
+  static create<T>(tag: string, value: T): GenericEnum<T> {
+    const item = new GenericEnum<T>()
+    item.tag = tag
+    item.value = value
+    return item
+  }
 
-  @omitif((self: Player) => self.age < 18)
-  age!: i32;
+  getTag(): string {
+    return this.tag
+  }
 
+  getValue(): T | null {
+    return this.value
+  }
+  @serializer
+  serialize<T>(self: GenericEnum<T>): string {
+    const tagJson = JSON.stringify(self.tag);
+    const valueJson = JSON.stringify(self.value);
+    return `{${tagJson}:${valueJson}}`
+  }
+  @deserializer
+  deserialize(data: string): GenericEnum<T> {
+    const parsed = JSON.parse<Map<string, JSON.Raw>>(data);
+    const result = new GenericEnum<T>();
 
-  @omitnull()
-  pos!: Vec3 | null;
-  isVerified!: boolean;
+    const keys = parsed.keys();
+    const values = parsed.values();
+
+    result.tag = keys[0];
+    result.value = JSON.parse<T>(values[0].data);
+
+    return result;
+  }
 }
 
-const player: Player = {
-  firstName: "Jairus",
-  lastName: "Tanaka",
-  lastActive: [3, 9, 2025],
-  age: 18,
-  pos: {
-    x: 3.4,
-    y: 1.2,
-    z: 8.3,
-  },
-  isVerified: true,
-};
+@json
+class Node<T> {
+  name: string
+  id: u32
+  data: T
 
-const serialized = JSON.stringify(player);
-console.log("Serialized: " + serialized);
-const deserialized = JSON.parse<Player>(serialized);
-console.log("Deserialized: " + JSON.stringify(deserialized));
+  constructor() {
+    this.name = ""
+    this.id = 0
+    this.data = changetype<T>(0);
+  }
+}
+
+const enumValue = GenericEnum.create<string>("success", "Hello World")
+
+const node = new Node<GenericEnum<string>>();
+node.name = "test-node";
+node.id = 42;
+node.data = enumValue;
+
+const serialized = JSON.stringify(node);
+console.log("Serialized Node: " + serialized);
+
+const deserialized = JSON.parse<Node<GenericEnum<string>>>(serialized)
+console.log("Deserialized Node: " + JSON.stringify(deserialized));

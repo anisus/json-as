@@ -62,8 +62,7 @@
     "test:wasmer": "wasmer ./build/test.wasm",
     "build:transform": "tsc -p ./transform",
     "bench:wasmer": "wasmer ./build/bench.wasm --llvm",
-    "format": "prettier -w .",
-    "publish": "bash ./publish.sh"
+    "format": "prettier -w ."
   },
   "type": "module",
   "types": "assembly/index.ts"

@@ -1,6 +1,7 @@
 import { bs } from "../lib/as-bs";
 import { JSON } from ".";
 
+
 @json
 class GenericEnum<T> {
   private tag: string = "";
@@ -22,6 +23,7 @@ class GenericEnum<T> {
     return this.value;
   }
 
+
   @serializer
   @inline
   serialize<T>(self: GenericEnum<T>): string {
@@ -29,6 +31,7 @@ class GenericEnum<T> {
     const valueJson = JSON.internal.stringify(self.value);
     return `{${tagJson}:${valueJson}}`;
   }
+
 
   @deserializer
   @inline
@@ -49,6 +52,7 @@ class GenericEnum<T> {
     bs.offset += dataSize;
   }
 
+
   @inline
   __INITIALIZE(): this {
     this.tag = "";
@@ -59,6 +63,7 @@ class GenericEnum<T> {
     return inline.always(this.deserialize(JSON.Util.ptrToStr(srcStart, srcEnd)));
   }
 }
+
 
 @json
 class Node<T> {
@@ -87,6 +92,7 @@ class Node<T> {
     store<u16>(bs.offset, 125, 0);
     bs.offset += 2;
   }
+
 
   @inline
   __INITIALIZE(): this {

@@ -26,12 +26,14 @@ class GenericEnum<T> {
     return this.value;
   }
 
+
   @serializer
   serialize<T>(self: GenericEnum<T>): string {
     const tagJson = JSON.stringify(self.tag);
     const valueJson = JSON.stringify(self.value);
     return `{${tagJson}:${valueJson}}`;
   }
+
 
   @deserializer
   deserialize(data: string): GenericEnum<T> {

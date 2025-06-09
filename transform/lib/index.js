@@ -324,11 +324,13 @@ export class JSONTransform extends Visitor {
             const aliasName = JSON.stringify(member.alias || member.name);
             const realName = member.name;
             const isLast = i == this.schema.members.length - 1;
-            const nonNullType = member.type.replace(" | null", "");
-            if (member.value) {
+            if (member.value && member.type == stripNull(member.type)) {
                 INITIALIZE += `  this.${member.name} = ${member.value};\n`;
             }
-            else if (this.getSchema(nonNullType)) {
+            else if (member.generic) {
+                INITIALIZE += `  this.${member.name} = (isManaged<${member.type}>() || isReference<${member.type}>()) ? changetype<${member.type}>(__new(offsetof<${member.type}>(), idof<${member.type}>())).__INITIALIZE() : changetype<usize>(0);\n`;
+            }
+            else if (this.getSchema(member.type)) {
                 INITIALIZE += `  this.${member.name} = changetype<nonnull<${member.type}>>(__new(offsetof<nonnull<${member.type}>>(), idof<nonnull<${member.type}>>())).__INITIALIZE();\n`;
             }
             else if (member.type.startsWith("Array<") || member.type.startsWith("Map<")) {
@@ -1235,6 +1237,9 @@ function isArray(type) {
 function stripNull(type) {
     if (type.endsWith(" | null")) {
         return type.slice(0, type.length - 7);
+    }
+    else if (type.startsWith("null | ")) {
+        return type.slice(7);
     }
     return type;
 }

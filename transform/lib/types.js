@@ -14,7 +14,7 @@ export class Property {
     flags = new Map();
     node;
     byteSize = 0;
-    generic = false;
+    _generic = false;
     _custom = false;
     parent;
     set custom(value) {
@@ -24,15 +24,27 @@ export class Property {
         if (this._custom)
             return true;
         if (this.parent.node.isGeneric && this.parent.node.typeParameters.some((p) => p.name.text == this.type)) {
-            this.generic = true;
             this._custom = true;
             return true;
         }
         for (const dep of this.parent.deps) {
-            if (this.name == dep.name) {
+            if (this.name == dep.name && dep.custom) {
                 this._custom = true;
                 return true;
             }
+        }
+        return false;
+    }
+    set generic(value) {
+        this._generic = value;
+    }
+    get generic() {
+        if (this._generic)
+            return true;
+        if (this.parent.node.isGeneric && this.parent.node.typeParameters.some((p) => p.name.text == this.type)) {
+            console.log("Generic: " + this.name);
+            this._generic = true;
+            return true;
         }
         return false;
     }

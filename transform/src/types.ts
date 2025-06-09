@@ -17,7 +17,7 @@ export class Property {
   public flags: Map<PropertyFlags, Expression | null> = new Map<PropertyFlags, Expression | null>();
   public node!: FieldDeclaration;
   public byteSize: number = 0;
-  public generic: boolean = false;
+  public _generic: boolean = false;
   public _custom: boolean = false;
   public parent: Schema;
   set custom(value: boolean) {
@@ -27,17 +27,29 @@ export class Property {
     if (this._custom) return true;
     if (this.parent.node.isGeneric && this.parent.node.typeParameters.some((p) => p.name.text == this.type)) {
       // console.log("Custom (Generic): " + this.name);
-      this.generic = true;
+      // this._generic = true;
       this._custom = true;
       return true;
     }
 
     for (const dep of this.parent.deps) {
-      if (this.name == dep.name) {
+      if (this.name == dep.name && dep.custom) {
         // console.log("Custom (Dependency): " + this.name);
         this._custom = true;
         return true;
       }
+    }
+    return false;
+  }
+  set generic(value: boolean) {
+    this._generic = value;
+  }
+  get generic(): boolean {
+    if (this._generic) return true;
+    if (this.parent.node.isGeneric && this.parent.node.typeParameters.some((p) => p.name.text == this.type)) {
+      console.log("Generic: " + this.name);
+      this._generic = true;
+      return true;
     }
     return false;
   }

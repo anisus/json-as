@@ -1,5 +1,6 @@
 import { JSON } from ".";
 
+
 @json
 class Person {
   id: string | null = null;
@@ -12,6 +13,7 @@ class Person {
 class PeopleData {
   people: Person[] = [];
 }
+
 
 @json
 export class Response<T> {

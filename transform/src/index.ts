@@ -448,8 +448,8 @@ export class JSONTransform extends Visitor {
         else if (isBoolean(type) || type.startsWith("JSON.Box<bool")) sortedMembers.boolean.push(member);
         else if (isPrimitive(type) || type.startsWith("JSON.Box<")) sortedMembers.number.push(member);
         else if (isArray(type)) sortedMembers.array.push(member);
-        else if (isStruct(type)) sortedMembers.object.push(member);
-        else console.warn("Could not determine type " + type + " for member " + member.name + " in class " + this.schema.name);
+        /*else if (isStruct(type)) */sortedMembers.object.push(member);
+        // else console.warn("Could not determine type " + type + " for member " + member.name + " in class " + this.schema.name);
       }
     }
 

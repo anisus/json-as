@@ -16,7 +16,7 @@ class PeopleData {
 @json
 export class Response<T> {
   // errors: ErrorResult[] | null = null;
-  data!: T;
+  data: T | null = null;
   // extensions: Map<string, ???> | null = null;
 }
 
@@ -28,7 +28,6 @@ console.log((isManaged<PeopleData>() || isReference<PeopleData>()).toString());
 let deserialized = JSON.parse<Response<PeopleData>>('{"data":{"people":[]}}');
 console.log("Deserialized Node: " + JSON.stringify(deserialized));
 
-const deserialized2 = JSON.parse<Response<i32>>('{"data":0}');
-console.log("Deserialized Node: " + JSON.stringify(deserialized2));
+// const deserialized2 = JSON.parse<Response<i32>>('{"data":0}');
+// console.log("Deserialized Node: " + JSON.stringify(deserialized2));
 // {"data":{"people":[]}}
-

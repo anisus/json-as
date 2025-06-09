@@ -338,7 +338,10 @@ export class JSONTransform extends Visitor {
       if (member.value && member.type == stripNull(member.type)) {
         INITIALIZE += `  this.${member.name} = ${member.value};\n`;
       } else if (member.generic) {
-        INITIALIZE += `  this.${member.name} = (isManaged<${member.type}>() || isReference<${member.type}>()) ? changetype<${member.type}>(__new(offsetof<${member.type}>(), idof<${member.type}>())).__INITIALIZE() : changetype<usize>(0);\n`;
+        INITIALIZE += `  if (isManaged<nonnull<${member.type}>>() || isReference<nonnull<${member.type}>>()) {\n`;
+        INITIALIZE += `    this.${member.name} = changetype<nonnull<${member.type}>>(__new(offsetof<nonnull<${member.type}>>(), idof<nonnull<${member.type}>>()));\n`;
+        INITIALIZE += `    if (isDefined(this.${member.name}.__INITIALIZE)) changetype<nonnull<${member.type}>>(this.${member.name}).__INITIALIZE();\n`;
+        INITIALIZE += `  }\n`;
       } else if (this.getSchema(member.type)) {
         INITIALIZE += `  this.${member.name} = changetype<nonnull<${member.type}>>(__new(offsetof<nonnull<${member.type}>>(), idof<nonnull<${member.type}>>())).__INITIALIZE();\n`;
       } else if (member.type.startsWith("Array<") || member.type.startsWith("Map<")) {
@@ -432,7 +435,7 @@ export class JSONTransform extends Visitor {
 
     for (const member of this.schema.members) {
       const type = stripNull(member.type);
-      if (member.custom) {
+      if (member.custom || member.generic) {
         sortedMembers.string.push(member);
         sortedMembers.number.push(member);
         sortedMembers.object.push(member);
@@ -445,8 +448,8 @@ export class JSONTransform extends Visitor {
         else if (isBoolean(type) || type.startsWith("JSON.Box<bool")) sortedMembers.boolean.push(member);
         else if (isPrimitive(type) || type.startsWith("JSON.Box<")) sortedMembers.number.push(member);
         else if (isArray(type)) sortedMembers.array.push(member);
-        /*else */ if (isStruct(type)) sortedMembers.object.push(member);
-        // else throw new Error("Could not determine type " + type + " for member " + member.name + " in class " + this.schema.name);
+        else if (isStruct(type)) sortedMembers.object.push(member);
+        else console.warn("Could not determine type " + type + " for member " + member.name + " in class " + this.schema.name);
       }
     }
 
@@ -1407,7 +1410,7 @@ function isArray(type: string): boolean {
   return type.startsWith("Array<");
 }
 
-function stripNull(type: string): string {
+export function stripNull(type: string): string {
   if (type.endsWith(" | null")) {
     return type.slice(0, type.length - 7);
   } else if (type.startsWith("null | ")) {

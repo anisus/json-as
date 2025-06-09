@@ -58,7 +58,6 @@ class Person {
           if (isKey) {
             keyStart = lastIndex;
             keyEnd = srcStart;
-            console.log("Key: " + JSON.Util.ptrToStr(keyStart, keyEnd));
             while (JSON.Util.isSpace((code = load<u16>((srcStart += 2))))) {}
             if (code !== 58) throw new Error("Expected ':' after key at position " + (srcEnd - srcStart).toString());
 ;
@@ -76,7 +75,6 @@ class Person {
           while (srcStart < srcEnd) {
             const code = load<u16>(srcStart);
             if (code == 34 && load<u16>(srcStart - 2) !== 92) {
-              console.log("Value (string, 1): " + JSON.Util.ptrToStr(lastIndex, srcStart + 2));
               switch (<u32>keyEnd - <u32>keyStart) {
                 case 4:
                   {
@@ -143,7 +141,6 @@ class Person {
           while (srcStart < srcEnd) {
             const code = load<u16>(srcStart);
             if (code == 44 || code == 125 || JSON.Util.isSpace(code)) {
-              console.log("Value (number, 2): " + JSON.Util.ptrToStr(lastIndex, srcStart));
               srcStart += 2;
               keyStart = 0;
               break;
@@ -162,7 +159,6 @@ class Person {
             } else if (code == 125) {
               if (--depth == 0) {
                 srcStart += 2;
-                console.log("Value (object, 3): " + JSON.Util.ptrToStr(lastIndex, srcStart));
                 keyStart = 0;
                 break;
               }
@@ -182,7 +178,6 @@ class Person {
             } else if (code == 93) {
               if (--depth == 0) {
                 srcStart += 2;
-                console.log("Value (object, 4): " + JSON.Util.ptrToStr(lastIndex, srcStart));
                 keyStart = 0;
                 break;
               }
@@ -193,7 +188,6 @@ class Person {
         } else if (code == 116) {
           if (load<u64>(srcStart) == 28429475166421108) {
             srcStart += 8;
-            console.log("Value (bool, 5): " + JSON.Util.ptrToStr(lastIndex, srcStart - 8));
             srcStart += 2;
             keyStart = 0;
           } else {
@@ -202,7 +196,6 @@ class Person {
         } else if (code == 102) {
           if (load<u64>(srcStart, 2) == 28429466576093281) {
             srcStart += 10;
-            console.log("Value (bool, 6): " + JSON.Util.ptrToStr(lastIndex, srcStart - 10));
             srcStart += 2;
             keyStart = 0;
           } else {
@@ -211,7 +204,6 @@ class Person {
         } else if (code == 110) {
           if (load<u64>(srcStart) == 30399761348886638) {
             srcStart += 8;
-            console.log("Value (null, 7): " + JSON.Util.ptrToStr(lastIndex, srcStart - 8));
             switch (<u32>keyEnd - <u32>keyStart) {
               case 4:
                 {
@@ -286,7 +278,6 @@ class PeopleData {
           if (isKey) {
             keyStart = lastIndex;
             keyEnd = srcStart;
-            console.log("Key: " + JSON.Util.ptrToStr(keyStart, keyEnd));
             while (JSON.Util.isSpace((code = load<u16>((srcStart += 2))))) {}
             if (code !== 58) throw new Error("Expected ':' after key at position " + (srcEnd - srcStart).toString());
 ;
@@ -304,7 +295,6 @@ class PeopleData {
           while (srcStart < srcEnd) {
             const code = load<u16>(srcStart);
             if (code == 34 && load<u16>(srcStart - 2) !== 92) {
-              console.log("Value (string, 8): " + JSON.Util.ptrToStr(lastIndex, srcStart + 2));
               srcStart += 4;
               keyStart = 0;
               break;
@@ -317,7 +307,6 @@ class PeopleData {
           while (srcStart < srcEnd) {
             const code = load<u16>(srcStart);
             if (code == 44 || code == 125 || JSON.Util.isSpace(code)) {
-              console.log("Value (number, 9): " + JSON.Util.ptrToStr(lastIndex, srcStart));
               srcStart += 2;
               keyStart = 0;
               break;
@@ -336,7 +325,6 @@ class PeopleData {
             } else if (code == 125) {
               if (--depth == 0) {
                 srcStart += 2;
-                console.log("Value (object, 10): " + JSON.Util.ptrToStr(lastIndex, srcStart));
                 keyStart = 0;
                 break;
               }
@@ -356,7 +344,6 @@ class PeopleData {
             } else if (code == 93) {
               if (--depth == 0) {
                 srcStart += 2;
-                console.log("Value (object, 11): " + JSON.Util.ptrToStr(lastIndex, srcStart));
                 switch (<u32>keyEnd - <u32>keyStart) {
                   case 12:
                     {
@@ -388,7 +375,6 @@ class PeopleData {
         } else if (code == 116) {
           if (load<u64>(srcStart) == 28429475166421108) {
             srcStart += 8;
-            console.log("Value (bool, 12): " + JSON.Util.ptrToStr(lastIndex, srcStart - 8));
             srcStart += 2;
             keyStart = 0;
           } else {
@@ -397,7 +383,6 @@ class PeopleData {
         } else if (code == 102) {
           if (load<u64>(srcStart, 2) == 28429466576093281) {
             srcStart += 10;
-            console.log("Value (bool, 13): " + JSON.Util.ptrToStr(lastIndex, srcStart - 10));
             srcStart += 2;
             keyStart = 0;
           } else {
@@ -406,7 +391,6 @@ class PeopleData {
         } else if (code == 110) {
           if (load<u64>(srcStart) == 30399761348886638) {
             srcStart += 8;
-            console.log("Value (null, 14): " + JSON.Util.ptrToStr(lastIndex, srcStart - 8));
             srcStart += 2;
             keyStart = 0;
           }
@@ -421,19 +405,23 @@ class PeopleData {
 }
 @json
 export class Response<T> {
-  data!: T;
+  data: T | null = null;
   __SERIALIZE(ptr: usize): void {
     bs.proposeSize(18);
     store<u64>(bs.offset, 27303502239891579, 0);
     store<u64>(bs.offset, 16325694684463220, 8);
     bs.offset += 16;
-    JSON.__serialize<T>(load<T>(ptr, offsetof<this>("data")));
+    JSON.__serialize<T | null>(load<T | null>(ptr, offsetof<this>("data")));
     store<u16>(bs.offset, 125, 0);
     bs.offset += 2;
   }
   @inline
   __INITIALIZE(): this {
-    this.data = (isManaged<T>() || isReference<T>()) ? changetype<T>(__new(offsetof<T>(), idof<T>())).__INITIALIZE() : changetype<usize>(0);
+    if (isManaged<nonnull<T | null>>() || isReference<nonnull<T | null>>()) {
+      this.data = changetype<nonnull<T | null>>(__new(offsetof<nonnull<T | null>>(), idof<nonnull<T | null>>()));
+      if (isDefined(this.data.__INITIALIZE)) changetype<nonnull<T | null>>(this.data).__INITIALIZE();
+;
+    }
     return this;
   }
   __DESERIALIZE<__JSON_T>(srcStart: usize, srcEnd: usize, out: __JSON_T): __JSON_T {
@@ -459,7 +447,6 @@ export class Response<T> {
           if (isKey) {
             keyStart = lastIndex;
             keyEnd = srcStart;
-            console.log("Key: " + JSON.Util.ptrToStr(keyStart, keyEnd));
             while (JSON.Util.isSpace((code = load<u16>((srcStart += 2))))) {}
             if (code !== 58) throw new Error("Expected ':' after key at position " + (srcEnd - srcStart).toString());
 ;
@@ -477,13 +464,12 @@ export class Response<T> {
           while (srcStart < srcEnd) {
             const code = load<u16>(srcStart);
             if (code == 34 && load<u16>(srcStart - 2) !== 92) {
-              console.log("Value (string, 15): " + JSON.Util.ptrToStr(lastIndex, srcStart + 2));
               switch (<u32>keyEnd - <u32>keyStart) {
                 case 8:
                   {
                     const code64 = load<u64>(keyStart);
-                    if (isString<T>() && code64 == 27303570963497060) {
-                      store<T>(changetype<usize>(out), JSON.__deserialize<T>(lastIndex, srcStart + 2), offsetof<this>("data"));
+                    if (isString<T | null>() && code64 == 27303570963497060) {
+                      store<T | null>(changetype<usize>(out), JSON.__deserialize<T | null>(lastIndex, srcStart + 2), offsetof<this>("data"));
                       srcStart += 4;
                       keyStart = 0;
                       break;
@@ -512,13 +498,12 @@ export class Response<T> {
           while (srcStart < srcEnd) {
             const code = load<u16>(srcStart);
             if (code == 44 || code == 125 || JSON.Util.isSpace(code)) {
-              console.log("Value (number, 16): " + JSON.Util.ptrToStr(lastIndex, srcStart));
               switch (<u32>keyEnd - <u32>keyStart) {
                 case 8:
                   {
                     const code64 = load<u64>(keyStart);
-                    if ((isInteger<T>() || isFloat<T>()) && code64 == 27303570963497060) {
-                      store<T>(changetype<usize>(out), JSON.__deserialize<T>(lastIndex, srcStart), offsetof<this>("data"));
+                    if ((isInteger<T | null>() || isFloat<T | null>()) && code64 == 27303570963497060) {
+                      store<T | null>(changetype<usize>(out), JSON.__deserialize<T | null>(lastIndex, srcStart), offsetof<this>("data"));
                       srcStart += 2;
                       keyStart = 0;
                       break;
@@ -553,13 +538,12 @@ export class Response<T> {
             } else if (code == 125) {
               if (--depth == 0) {
                 srcStart += 2;
-                console.log("Value (object, 17): " + JSON.Util.ptrToStr(lastIndex, srcStart));
                 switch (<u32>keyEnd - <u32>keyStart) {
                   case 8:
                     {
                       const code64 = load<u64>(keyStart);
                       if (isDefined(out.__DESERIALIZE) && code64 == 27303570963497060) {
-                        store<T>(changetype<usize>(out), JSON.__deserialize<T>(lastIndex, srcStart), offsetof<this>("data"));
+                        store<T | null>(changetype<usize>(out), JSON.__deserialize<T | null>(lastIndex, srcStart), offsetof<this>("data"));
                         keyStart = 0;
                         break;
                       } else {
@@ -593,13 +577,12 @@ export class Response<T> {
             } else if (code == 93) {
               if (--depth == 0) {
                 srcStart += 2;
-                console.log("Value (object, 18): " + JSON.Util.ptrToStr(lastIndex, srcStart));
                 switch (<u32>keyEnd - <u32>keyStart) {
                   case 8:
                     {
                       const code64 = load<u64>(keyStart);
-                      if (isArray<T>() && code64 == 27303570963497060) {
-                        store<T>(changetype<usize>(out), JSON.__deserialize<T>(lastIndex, srcStart), offsetof<this>("data"));
+                      if (isArray<T | null>() && code64 == 27303570963497060) {
+                        store<T | null>(changetype<usize>(out), JSON.__deserialize<T | null>(lastIndex, srcStart), offsetof<this>("data"));
                         keyStart = 0;
                         break;
                       } else {
@@ -624,12 +607,11 @@ export class Response<T> {
         } else if (code == 116) {
           if (load<u64>(srcStart) == 28429475166421108) {
             srcStart += 8;
-            console.log("Value (bool, 19): " + JSON.Util.ptrToStr(lastIndex, srcStart - 8));
             switch (<u32>keyEnd - <u32>keyStart) {
               case 8:
                 {
                   const code64 = load<u64>(keyStart);
-                  if (isBoolean<T>() && code64 == 27303570963497060) {
+                  if (isBoolean<T | null>() && code64 == 27303570963497060) {
                     store<boolean>(changetype<usize>(out), true, offsetof<this>("data"));
                     srcStart += 2;
                     keyStart = 0;
@@ -654,12 +636,11 @@ export class Response<T> {
         } else if (code == 102) {
           if (load<u64>(srcStart, 2) == 28429466576093281) {
             srcStart += 10;
-            console.log("Value (bool, 20): " + JSON.Util.ptrToStr(lastIndex, srcStart - 10));
             switch (<u32>keyEnd - <u32>keyStart) {
               case 8:
                 {
                   const code64 = load<u64>(keyStart);
-                  if (isBoolean<T>() && code64 == 27303570963497060) {
+                  if (isBoolean<T | null>() && code64 == 27303570963497060) {
                     store<boolean>(changetype<usize>(out), false, offsetof<this>("data"));
                     srcStart += 2;
                     keyStart = 0;
@@ -684,12 +665,11 @@ export class Response<T> {
         } else if (code == 110) {
           if (load<u64>(srcStart) == 30399761348886638) {
             srcStart += 8;
-            console.log("Value (null, 21): " + JSON.Util.ptrToStr(lastIndex, srcStart - 8));
             switch (<u32>keyEnd - <u32>keyStart) {
               case 8:
                 {
                   const code64 = load<u64>(keyStart);
-                  if (isNullable<T>() && code64 == 27303570963497060) {
+                  if (isNullable<T | null>() && code64 == 27303570963497060) {
                     store<usize>(changetype<usize>(out), 0, offsetof<this>("data"));
                     srcStart += 2;
                     keyStart = 0;
@@ -721,5 +701,3 @@ export class Response<T> {
 console.log((isManaged<PeopleData>() || isReference<PeopleData>()).toString());
 let deserialized = JSON.parse<Response<PeopleData>>("{\"data\":{\"people\":[]}}");
 console.log("Deserialized Node: " + JSON.stringify(deserialized));
-const deserialized2 = JSON.parse<Response<i32>>("{\"data\":0}");
-console.log("Deserialized Node: " + JSON.stringify(deserialized2));

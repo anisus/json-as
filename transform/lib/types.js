@@ -1,4 +1,5 @@
 import { TypeAlias } from "./linkers/alias.js";
+import { stripNull } from "./index.js";
 export var PropertyFlags;
 (function (PropertyFlags) {
     PropertyFlags[PropertyFlags["OmitNull"] = 0] = "OmitNull";
@@ -41,8 +42,7 @@ export class Property {
     get generic() {
         if (this._generic)
             return true;
-        if (this.parent.node.isGeneric && this.parent.node.typeParameters.some((p) => p.name.text == this.type)) {
-            console.log("Generic: " + this.name);
+        if (this.parent.node.isGeneric && this.parent.node.typeParameters.some((p) => p.name.text == stripNull(this.type))) {
             this._generic = true;
             return true;
         }

@@ -1,6 +1,6 @@
 import { ClassDeclaration, Expression, FieldDeclaration, Source } from "assemblyscript/dist/assemblyscript.js";
 import { TypeAlias } from "./linkers/alias.js";
-import { JSONTransform } from "./index.js";
+import { JSONTransform, stripNull } from "./index.js";
 
 export enum PropertyFlags {
   OmitNull,
@@ -46,8 +46,8 @@ export class Property {
   }
   get generic(): boolean {
     if (this._generic) return true;
-    if (this.parent.node.isGeneric && this.parent.node.typeParameters.some((p) => p.name.text == this.type)) {
-      console.log("Generic: " + this.name);
+    if (this.parent.node.isGeneric && this.parent.node.typeParameters.some((p) => p.name.text == stripNull(this.type))) {
+      // console.log("Generic: " + this.name);
       this._generic = true;
       return true;
     }

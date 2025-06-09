@@ -324,11 +324,16 @@ export class JSONTransform extends Visitor {
             const aliasName = JSON.stringify(member.alias || member.name);
             const realName = member.name;
             const isLast = i == this.schema.members.length - 1;
-            const nonNullType = member.type.replace(" | null", "");
-            if (member.value) {
+            if (member.value && member.type == stripNull(member.type)) {
                 INITIALIZE += `  this.${member.name} = ${member.value};\n`;
             }
-            else if (this.getSchema(nonNullType)) {
+            else if (member.generic) {
+                INITIALIZE += `  if (isManaged<nonnull<${member.type}>>() || isReference<nonnull<${member.type}>>()) {\n`;
+                INITIALIZE += `    this.${member.name} = changetype<nonnull<${member.type}>>(__new(offsetof<nonnull<${member.type}>>(), idof<nonnull<${member.type}>>()));\n`;
+                INITIALIZE += `    if (isDefined(this.${member.name}.__INITIALIZE)) changetype<nonnull<${member.type}>>(this.${member.name}).__INITIALIZE();\n`;
+                INITIALIZE += `  }\n`;
+            }
+            else if (this.getSchema(member.type)) {
                 INITIALIZE += `  this.${member.name} = changetype<nonnull<${member.type}>>(__new(offsetof<nonnull<${member.type}>>(), idof<nonnull<${member.type}>>())).__INITIALIZE();\n`;
             }
             else if (member.type.startsWith("Array<") || member.type.startsWith("Map<")) {
@@ -414,7 +419,7 @@ export class JSONTransform extends Visitor {
         };
         for (const member of this.schema.members) {
             const type = stripNull(member.type);
-            if (member.custom) {
+            if (member.custom || member.generic) {
                 sortedMembers.string.push(member);
                 sortedMembers.number.push(member);
                 sortedMembers.object.push(member);
@@ -433,8 +438,7 @@ export class JSONTransform extends Visitor {
                     sortedMembers.number.push(member);
                 else if (isArray(type))
                     sortedMembers.array.push(member);
-                if (isStruct(type))
-                    sortedMembers.object.push(member);
+                sortedMembers.object.push(member);
             }
         }
         indent = "";
@@ -1232,9 +1236,12 @@ function isString(type) {
 function isArray(type) {
     return type.startsWith("Array<");
 }
-function stripNull(type) {
+export function stripNull(type) {
     if (type.endsWith(" | null")) {
         return type.slice(0, type.length - 7);
+    }
+    else if (type.startsWith("null | ")) {
+        return type.slice(7);
     }
     return type;
 }

@@ -1,6 +1,6 @@
 # Change Log
 
-## UNRELEASED
+## 2025-06-09 - 1.1.15
 
 - feat: add `.as<T>()` method to `JSON.Value`
 - chore: remove all references to `__SERIALIZE_CUSTOM`
@@ -8,6 +8,8 @@
 - feat: support `JSON.Raw` in array types
 - tests: add tests for `JSON.Raw[]`
 - tests: properly support nulls (in testing lib)
+- fix: initialize generic properties correctly
+- fix: make generated imports compatible with windows
 
 ## 2025-05-29 - 1.1.14
 

@@ -1,35 +1,65 @@
 import { JSON } from ".";
 
-
 @json
-class Person {
-  id: string | null = null;
-  firstName: string = "";
-  lastName: string = "";
+class ByteArray extends Uint8Array {
+  constructor(length: i32) {
+    super(length);
+  }
+  @serializer
+  serialize(): string {
+    return `"${toHexString(this.buffer)}"`
+  }
+
+  @deserializer
+  deserialize(data: string): ByteArray {
+    if (data.charCodeAt(0) != 34 || data.charCodeAt(data.length - 1) != 34)
+      throw new Error("Expected Address to be of type string but found otherwise!");
+
+    const out = new ByteArray((data.length / 2) - i32(data.startsWith("0x")));
+    store<ArrayBuffer>(changetype<usize>(out), fromHexString(data), offsetof<ByteArray>("buffer"));
+    // We can't use out.buffer = ... here because it's a readonly value.
+    // This works around that
+
+    return out;
+  }
+  static wrap(buffer: ArrayBuffer, byteOffset: i32 = 0, length: i32 = -1): ByteArray {
+    return changetype<ByteArray>(Uint8Array.wrap(buffer, byteOffset, length));
+  }
+}
+
+function toHexString(buffer: ArrayBuffer): string {
+  const view = Uint8Array.wrap(buffer);
+  let hex = "0x";
+
+  for (let i = 0; i < view.length; i++) {
+    let byte = view[i];
+    hex += byte.toString(16).padStart(2, "0");
+  }
+
+  return hex;
 }
 
 
-@json
-class PeopleData {
-  people: Person[] = [];
+function fromHexString(data: string): ArrayBuffer {
+  if (data.startsWith("\"0x") || data.startsWith("\"0X")) {
+    data = data.slice(3, data.length - 1);
+  } else {
+    data = data.slice(1, data.length - 1);
+  }
+
+  const length = data.length >>> 1;
+  const buffer = new ArrayBuffer(length);
+  const view = Uint8Array.wrap(buffer);
+
+  for (let i = 0; i < length; i++) {
+    const hexByte = data.substr(i * 2, 2);
+    view[i] = i8.parse(hexByte, 16);
+  }
+  return buffer
 }
 
+const s1 = JSON.stringify(ByteArray.wrap(String.UTF8.encode("Hello there")));
+console.log("s1: " + s1)
 
-@json
-export class Response<T> {
-  // errors: ErrorResult[] | null = null;
-  data: T | null = null;
-  // extensions: Map<string, ???> | null = null;
-}
-
-console.log((isManaged<PeopleData>() || isReference<PeopleData>()).toString());
-
-// const serialized = JSON.stringify(new Response<PeopleData>());
-// console.log("Serialized Node: " + serialized);
-
-let deserialized = JSON.parse<Response<PeopleData>>('{"data":{"people":[]}}');
-console.log("Deserialized Node: " + JSON.stringify(deserialized));
-
-// const deserialized2 = JSON.parse<Response<i32>>('{"data":0}');
-// console.log("Deserialized Node: " + JSON.stringify(deserialized2));
-// {"data":{"people":[]}}
+const s2 = JSON.parse<ByteArray>(s1);
+console.log("s2: " + JSON.stringify(s2));

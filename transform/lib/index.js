@@ -249,7 +249,7 @@ export class JSONTransform extends Visitor {
             DESERIALIZE_CUSTOM += "    return inline.always(this." + deserializer.name.text + "(JSON.Util.ptrToStr(srcStart, srcEnd)));\n";
             DESERIALIZE_CUSTOM += "  }\n";
         }
-        if (!members.length) {
+        if (!members.length && !deserializers.length && !serializers.length) {
             this.generateEmptyMethods(node);
             return;
         }

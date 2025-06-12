@@ -1106,34 +1106,37 @@ export class JSONTransform extends Visitor {
     super.visitSource(node);
   }
   addImports(node: Source): void {
+    console.log("Separator: " + path.sep)
+    console.log("Platform: " + process.platform)
+    this.baseCWD = this.baseCWD.replaceAll("/", path.sep);
+
     const baseDir = path.resolve(fileURLToPath(import.meta.url), "..", "..", "..");
     const pkgPath = path.join(this.baseCWD, "node_modules");
-    const isLibrary = existsSync(path.join(pkgPath, "json-as"));
-    let fromPath = node.range.source.normalizedPath;
+    let fromPath = node.range.source.normalizedPath.replaceAll("/", path.sep);
 
-    fromPath = fromPath.startsWith("~lib/") ? (existsSync(path.join(pkgPath, fromPath.slice(5, fromPath.indexOf("/", 5)))) ? path.join(pkgPath, fromPath.slice(5)) : fromPath) : path.join(this.baseCWD, fromPath);
+    console.log("baseCWD", this.baseCWD);
+    console.log("baseDir", baseDir);
+    console.log("pkgPath: ", pkgPath);
+
+    fromPath = fromPath.startsWith("~lib") ? fromPath.slice(5) : path.join(this.baseCWD, fromPath);
+
+    console.log("fromPath", fromPath);
 
     const bsImport = this.imports.find((i) => i.declarations?.find((d) => d.foreignName.text == "bs" || d.name.text == "bs"));
     const jsonImport = this.imports.find((i) => i.declarations?.find((d) => d.foreignName.text == "JSON" || d.name.text == "JSON"));
 
-    let bsRel = removeExtension(path.posix.join(...path.relative(path.dirname(fromPath), path.join(baseDir, "lib", "as-bs")).split(path.sep)));
+    let baseRel = path.posix.join(...path.relative(path.dirname(fromPath), path.join(baseDir)).split(path.sep));
 
-    let jsRel = removeExtension(path.posix.join(...path.relative(path.dirname(fromPath), path.join(baseDir, "assembly", "index")).split(path.sep)));
-
-    if (bsRel.includes("node_modules" + path.sep + "json-as")) {
-      bsRel = "json-as" + bsRel.slice(bsRel.indexOf("node_modules" + path.sep + "json-as") + 20);
-    } else if (!bsRel.startsWith(".") && !bsRel.startsWith("/") && !bsRel.startsWith("json-as")) {
-      bsRel = "./" + bsRel;
+    if (baseRel.endsWith("node_modules/json-as")) {
+      baseRel = "json-as" + baseRel.slice(baseRel.indexOf("node_modules/json-as") + 20);
+    } else if (!baseRel.startsWith(".") && !baseRel.startsWith("/") && !baseRel.startsWith("json-as")) {
+      baseRel = "./" + baseRel;
     }
 
-    if (jsRel.includes("node_modules" + path.sep + "json-as")) {
-      jsRel = "json-as" + jsRel.slice(jsRel.indexOf("node_modules" + path.sep + "json-as") + 20);
-    } else if (!jsRel.startsWith(".") && !jsRel.startsWith("/") && !jsRel.startsWith("json-as")) {
-      jsRel = "./" + jsRel;
-    }
+    console.log("relPath", baseRel);
 
     if (!bsImport) {
-      const replaceNode = Node.createImportStatement([Node.createImportDeclaration(Node.createIdentifierExpression("bs", node.range, false), null, node.range)], Node.createStringLiteralExpression(bsRel, node.range), node.range);
+      const replaceNode = Node.createImportStatement([Node.createImportDeclaration(Node.createIdentifierExpression("bs", node.range, false), null, node.range)], Node.createStringLiteralExpression(path.posix.join(baseRel, "lib", "as-bs"), node.range), node.range);
       node.range.source.statements.unshift(replaceNode);
       if (DEBUG > 0) console.log("Added import: " + toString(replaceNode) + " to " + node.range.source.normalizedPath + "\n");
     }
@@ -1141,7 +1144,7 @@ export class JSONTransform extends Visitor {
     if (!jsonImport) {
       const replaceNode = Node.createImportStatement(
         [Node.createImportDeclaration(Node.createIdentifierExpression("JSON", node.range, false), null, node.range)],
-        Node.createStringLiteralExpression(jsRel, node.range), // Ensure POSIX-style path for 'assembly'
+        Node.createStringLiteralExpression(path.posix.join(baseRel, "assembly", "index"), node.range), // Ensure POSIX-style path for 'assembly'
         node.range,
       );
       node.range.source.statements.unshift(replaceNode);

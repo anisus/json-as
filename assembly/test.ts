@@ -1,65 +1,40 @@
 import { JSON } from ".";
+@json
+class Vec3 {
+  x: f32 = 0.0;
+  y: f32 = 0.0;
+  z: f32 = 0.0;
+}
 
 @json
-class ByteArray extends Uint8Array {
-  constructor(length: i32) {
-    super(length);
-  }
-  @serializer
-  serialize(): string {
-    return `"${toHexString(this.buffer)}"`
-  }
-
-  @deserializer
-  deserialize(data: string): ByteArray {
-    if (data.charCodeAt(0) != 34 || data.charCodeAt(data.length - 1) != 34)
-      throw new Error("Expected Address to be of type string but found otherwise!");
-
-    const out = new ByteArray((data.length / 2) - i32(data.startsWith("0x")));
-    store<ArrayBuffer>(changetype<usize>(out), fromHexString(data), offsetof<ByteArray>("buffer"));
-    // We can't use out.buffer = ... here because it's a readonly value.
-    // This works around that
-
-    return out;
-  }
-  static wrap(buffer: ArrayBuffer, byteOffset: i32 = 0, length: i32 = -1): ByteArray {
-    return changetype<ByteArray>(Uint8Array.wrap(buffer, byteOffset, length));
-  }
+class Player {
+  @alias("first name")
+  firstName!: string | null;
+  lastName!: string;
+  lastActive!: i32[];
+  // Drop in a code block, function, or expression that evaluates to a boolean
+  @omitif((self: Player) => self.age < 18)
+  age!: i32;
+  @omitnull()
+  pos!: Vec3 | null;
+  isVerified!: boolean;
 }
 
-function toHexString(buffer: ArrayBuffer): string {
-  const view = Uint8Array.wrap(buffer);
-  let hex = "0x";
+const player: Player = {
+  firstName: "Jairus",
+  lastName: "Tanaka",
+  lastActive: [3, 9, 2025],
+  age: 18,
+  pos: {
+    x: 3.4,
+    y: 1.2,
+    z: 8.3,
+  },
+  isVerified: true,
+};
 
-  for (let i = 0; i < view.length; i++) {
-    let byte = view[i];
-    hex += byte.toString(16).padStart(2, "0");
-  }
+const serialized = JSON.stringify<Player>(player);
+const deserialized = JSON.parse<Player>(serialized);
 
-  return hex;
-}
-
-
-function fromHexString(data: string): ArrayBuffer {
-  if (data.startsWith("\"0x") || data.startsWith("\"0X")) {
-    data = data.slice(3, data.length - 1);
-  } else {
-    data = data.slice(1, data.length - 1);
-  }
-
-  const length = data.length >>> 1;
-  const buffer = new ArrayBuffer(length);
-  const view = Uint8Array.wrap(buffer);
-
-  for (let i = 0; i < length; i++) {
-    const hexByte = data.substr(i * 2, 2);
-    view[i] = i8.parse(hexByte, 16);
-  }
-  return buffer
-}
-
-const s1 = JSON.stringify(ByteArray.wrap(String.UTF8.encode("Hello there")));
-console.log("s1: " + s1)
-
-const s2 = JSON.parse<ByteArray>(s1);
-console.log("s2: " + JSON.stringify(s2));
+console.log("Serialized    " + serialized);
+console.log("Deserialized  " + JSON.stringify(deserialized));

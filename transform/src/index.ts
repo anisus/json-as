@@ -336,18 +336,22 @@ export class JSONTransform extends Visitor {
       const isLast = i == this.schema.members.length - 1;
 
       if (member.value && member.type == stripNull(member.type)) {
-        INITIALIZE += `  this.${member.name} = ${member.value};\n`;
+        if (!(member.value == "null" || member.value == "0" || member.value == "0.0" || member.value == "false")) {
+          INITIALIZE += `  store<${member.type}>(changetype<usize>(this), ${member.value}, offsetof<this>(${JSON.stringify(member.name)}));\n`;
+        }
       } else if (member.generic) {
         INITIALIZE += `  if (isManaged<nonnull<${member.type}>>() || isReference<nonnull<${member.type}>>()) {\n`;
-        INITIALIZE += `    this.${member.name} = changetype<nonnull<${member.type}>>(__new(offsetof<nonnull<${member.type}>>(), idof<nonnull<${member.type}>>()));\n`;
+        INITIALIZE += `    store<${member.type}>(changetype<usize>(this), changetype<nonnull<${member.type}>>(__new(offsetof<nonnull<${member.type}>>(), idof<nonnull<${member.type}>>())), offsetof<this>(${JSON.stringify(member.name)}));\n`;
         INITIALIZE += `    if (isDefined(this.${member.name}.__INITIALIZE)) changetype<nonnull<${member.type}>>(this.${member.name}).__INITIALIZE();\n`;
         INITIALIZE += `  }\n`;
-      } else if (this.getSchema(member.type)) {
-        INITIALIZE += `  this.${member.name} = changetype<nonnull<${member.type}>>(__new(offsetof<nonnull<${member.type}>>(), idof<nonnull<${member.type}>>())).__INITIALIZE();\n`;
-      } else if (member.type.startsWith("Array<") || member.type.startsWith("Map<")) {
-        INITIALIZE += `  this.${member.name} = [];\n`;
-      } else if (member.type == "string" || member.type == "String") {
-        INITIALIZE += `  this.${member.name} = "";\n`;
+      } else if (!member.node.type.isNullable) {
+        if (this.getSchema(member.type)) {
+          INITIALIZE += `  store<${member.type}>(changetype<usize>(this), changetype<nonnull<${member.type}>>(__new(offsetof<nonnull<${member.type}>>(), idof<nonnull<${member.type}>>())).__INITIALIZE(), offsetof<this>(${JSON.stringify(member.name)}));\n`;
+        } else if (member.type.startsWith("Array<") || member.type.startsWith("Map<")) {
+          INITIALIZE += `  store<${member.type}>(changetype<usize>(this), [], offsetof<this>(${JSON.stringify(member.name)}));\n`;
+        } else if (member.type == "string" || member.type == "String") {
+          INITIALIZE += `  store<${member.type}>(changetype<usize>(this), "", offsetof<this>(${JSON.stringify(member.name)}));\n`;
+        }
       }
 
       const SIMD_ENABLED = this.program.options.hasFeature(Feature.Simd);

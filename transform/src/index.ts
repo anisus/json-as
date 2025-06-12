@@ -1106,21 +1106,21 @@ export class JSONTransform extends Visitor {
     super.visitSource(node);
   }
   addImports(node: Source): void {
-    console.log("Separator: " + path.sep)
-    console.log("Platform: " + process.platform)
+    // console.log("Separator: " + path.sep)
+    // console.log("Platform: " + process.platform)
     this.baseCWD = this.baseCWD.replaceAll("/", path.sep);
 
     const baseDir = path.resolve(fileURLToPath(import.meta.url), "..", "..", "..");
     const pkgPath = path.join(this.baseCWD, "node_modules");
     let fromPath = node.range.source.normalizedPath.replaceAll("/", path.sep);
 
-    console.log("baseCWD", this.baseCWD);
-    console.log("baseDir", baseDir);
-    console.log("pkgPath: ", pkgPath);
+    // console.log("baseCWD", this.baseCWD);
+    // console.log("baseDir", baseDir);
+    // console.log("pkgPath: ", pkgPath);
 
     fromPath = fromPath.startsWith("~lib") ? fromPath.slice(5) : path.join(this.baseCWD, fromPath);
 
-    console.log("fromPath", fromPath);
+    // console.log("fromPath", fromPath);
 
     const bsImport = this.imports.find((i) => i.declarations?.find((d) => d.foreignName.text == "bs" || d.name.text == "bs"));
     const jsonImport = this.imports.find((i) => i.declarations?.find((d) => d.foreignName.text == "JSON" || d.name.text == "JSON"));
@@ -1133,7 +1133,7 @@ export class JSONTransform extends Visitor {
       baseRel = "./" + baseRel;
     }
 
-    console.log("relPath", baseRel);
+    // console.log("relPath", baseRel);
 
     if (!bsImport) {
       const replaceNode = Node.createImportStatement([Node.createImportDeclaration(Node.createIdentifierExpression("bs", node.range, false), null, node.range)], Node.createStringLiteralExpression(path.posix.join(baseRel, "lib", "as-bs"), node.range), node.range);

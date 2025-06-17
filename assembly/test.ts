@@ -1,5 +1,6 @@
 import { JSON } from ".";
 
+
 @json
 class Vec3 {
   x: f32 = 0.0;
@@ -18,6 +19,7 @@ class Player {
   // Drop in a code block, function, or expression that evaluates to a boolean
   @omitif((self: Player) => self.age < 18)
   age!: i32;
+
 
   @omitnull()
   pos!: Vec3 | null;

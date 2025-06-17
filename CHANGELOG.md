@@ -1,5 +1,9 @@
 # Change Log
 
+## 2025-06-17 - 1.1.17
+
+- fix: add support for classes within namespaces [#147](https://github.com/JairusSW/json-as/pull/147)
+
 ## 2025-06-12 - 1.1.16
 
 - tests: properly support nulls (in testing lib)

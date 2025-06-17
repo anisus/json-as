@@ -638,6 +638,7 @@ class Player {
   }
 }
 const player: Player = {
+  firstName: "Jairus",
   lastName: "Tanaka",
   lastActive: [3, 9, 2025],
   age: 18,

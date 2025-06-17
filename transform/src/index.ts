@@ -5,7 +5,6 @@ import { isStdlib, removeExtension, SimpleParser, toString } from "./util.js";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { Property, PropertyFlags, Schema, Src, SourceSet } from "./types.js";
-import { getImportedClass } from "./linkers/classes.js";
 import { writeFileSync } from "fs";
 import { CustomTransform } from "./linkers/custom.js";
 

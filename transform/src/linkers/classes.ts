@@ -1,4 +1,4 @@
-import { ClassDeclaration, CommonFlags, NodeKind, Parser, Source } from "assemblyscript/dist/assemblyscript.js";
+import { ClassDeclaration, CommonFlags, NodeKind, Parser, Source, TypeName } from "assemblyscript/dist/assemblyscript.js";
 import { Visitor } from "../visitor.js";
 import { getImports } from "./imports.js";
 

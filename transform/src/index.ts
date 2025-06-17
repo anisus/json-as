@@ -4,23 +4,22 @@ import { Visitor } from "./visitor.js";
 import { isStdlib, removeExtension, SimpleParser, toString } from "./util.js";
 import * as path from "path";
 import { fileURLToPath } from "url";
-import { Property, PropertyFlags, Schema, Src } from "./types.js";
-import { getClass, getImportedClass } from "./linkers/classes.js";
-import { existsSync, writeFileSync } from "fs";
+import { Property, PropertyFlags, Schema, Src, SourceSet } from "./types.js";
+import { writeFileSync } from "fs";
 import { CustomTransform } from "./linkers/custom.js";
 
 let indent = "  ";
 
 let id = 0;
 
-const WRITE = process.env["JSON_WRITE"];
-const rawValue = process.env["JSON_DEBUG"];
+const WRITE = process.env["JSON_WRITE"]?.trim();
+const rawValue = process.env["JSON_DEBUG"]?.trim();
 
 const DEBUG = rawValue === "true" ? 1 : rawValue === "false" || rawValue === "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
 
 const STRICT = process.env["JSON_STRICT"] && process.env["JSON_STRICT"] == "true";
 
-class JSONTransform extends Visitor {
+export class JSONTransform extends Visitor {
   static SN: JSONTransform = new JSONTransform();
 
   public program!: Program;
@@ -28,10 +27,8 @@ class JSONTransform extends Visitor {
   public parser!: Parser;
   public schemas: Map<string, Schema[]> = new Map<string, Schema[]>();
   public schema!: Schema;
-  public src!: Src;
-  public sources: Map<string, Src> = new Map<string, Src>();
+  public sources: SourceSet = new SourceSet();
   public imports: ImportStatement[] = [];
-
   public simdStatements: string[] = [];
 
   private visitedClasses: Set<string> = new Set<string>();
@@ -47,6 +44,7 @@ class JSONTransform extends Visitor {
       throw new Error("Class " + node.name.text + " is missing an @json or @serializable decorator in " + node.range.source.internalPath);
     this.visitClassDeclaration(node);
   }
+
   visitClassDeclaration(node: ClassDeclaration): void {
     if (!node.decorators?.length) return;
 
@@ -58,13 +56,11 @@ class JSONTransform extends Visitor {
     )
       return;
 
-    const source = node.range.source;
-    if (!this.sources.has(source.internalPath)) {
-      this.src = new Src(source);
-      this.sources.set(source.internalPath, this.src);
-    } else this.src = this.sources.get(source.internalPath);
+    const source = this.sources.get(node.range.source);
 
-    if (this.visitedClasses.has(source.internalPath + node.name.text)) return;
+    const fullClassPath = source.getFullPath(node);
+
+    if (this.visitedClasses.has(fullClassPath)) return;
     if (!this.schemas.has(source.internalPath)) this.schemas.set(source.internalPath, []);
 
     const members: FieldDeclaration[] = [...(node.members.filter((v) => v.kind === NodeKind.FieldDeclaration && v.flags !== CommonFlags.Static && v.flags !== CommonFlags.Private && v.flags !== CommonFlags.Protected && !v.decorators?.some((decorator) => (<IdentifierExpression>decorator.name).text === "omit")) as FieldDeclaration[])];
@@ -73,10 +69,11 @@ class JSONTransform extends Visitor {
 
     const schema = new Schema();
     schema.node = node;
-    schema.name = node.name.text;
+    schema.name = source.getQualifiedName(node);
 
     if (node.extendsType) {
-      const extendsName = node.extendsType?.name.identifier.text;
+      const extendsName = source.resolveExtendsName(node);
+
       if (!schema.parent) {
         const depSearch = schema.deps.find((v) => v.name == extendsName);
         if (depSearch) {
@@ -84,31 +81,32 @@ class JSONTransform extends Visitor {
           if (!schema.deps.some((v) => v.name == depSearch.name)) schema.deps.push(depSearch);
           schema.parent = depSearch;
         } else {
-          const internalSearch = getClass(extendsName, source);
+          const internalSearch = source.getClass(extendsName);
           if (internalSearch) {
             if (DEBUG > 0) console.log("Found " + extendsName + " internally from " + source.internalPath);
-            if (!this.visitedClasses.has(internalSearch.range.source.internalPath + internalSearch.name.text)) {
+            if (!this.visitedClasses.has(source.getFullPath(internalSearch))) {
               this.visitClassDeclarationRef(internalSearch);
               this.schemas.get(internalSearch.range.source.internalPath).push(this.schema);
               this.visitClassDeclaration(node);
               return;
             }
-            const schem = this.schemas.get(internalSearch.range.source.internalPath)?.find((s) => s.name == internalSearch.name.text);
+            const schem = this.schemas.get(internalSearch.range.source.internalPath)?.find((s) => s.name == extendsName);
             if (!schem) throw new Error("Could not find schema for " + internalSearch.name.text + " in " + internalSearch.range.source.internalPath);
             schema.deps.push(schem);
             schema.parent = schem;
           } else {
-            const externalSearch = getImportedClass(extendsName, source, this.parser);
+            const externalSearch = source.getImportedClass(extendsName, this.parser);
             if (externalSearch) {
               if (DEBUG > 0) console.log("Found " + externalSearch.name.text + " externally from " + source.internalPath);
-              if (!this.visitedClasses.has(externalSearch.range.source.internalPath + externalSearch.name.text)) {
+              const externalSource = this.sources.get(externalSearch.range.source);
+              if (!this.visitedClasses.has(externalSource.getFullPath(externalSearch))) {
                 this.visitClassDeclarationRef(externalSearch);
-                this.schemas.get(externalSearch.range.source.internalPath).push(this.schema);
+                this.schemas.get(externalSource.internalPath).push(this.schema);
                 this.visitClassDeclaration(node);
                 return;
               }
-              const schem = this.schemas.get(externalSearch.range.source.internalPath)?.find((s) => s.name == externalSearch.name.text);
-              if (!schem) throw new Error("Could not find schema for " + externalSearch.name.text + " in " + externalSearch.range.source.internalPath);
+              const schem = this.schemas.get(externalSource.internalPath)?.find((s) => s.name == extendsName);
+              if (!schem) throw new Error("Could not find schema for " + externalSearch.name.text + " in " + externalSource.internalPath);
               schema.deps.push(schem);
               schema.parent = schem;
             }
@@ -127,7 +125,7 @@ class JSONTransform extends Visitor {
 
     const getUnknownTypes = (type: string, types: string[] = []): string[] => {
       type = stripNull(type);
-      type = this.src.aliases.find((v) => stripNull(v.name) == type)?.getBaseType() || type;
+      type = source.aliases.find((v) => stripNull(v.name) == type)?.getBaseType() || type;
       if (type.startsWith("Array<")) {
         return getUnknownTypes(type.slice(6, -1));
       } else if (type.startsWith("Map<")) {
@@ -154,32 +152,40 @@ class JSONTransform extends Visitor {
         const depSearch = schema.deps.find((v) => v.name == unknownType);
         if (depSearch) {
           if (DEBUG > 0) console.log("Found " + unknownType + " in dependencies of " + source.internalPath);
-          if (!schema.deps.some((v) => v.name == depSearch.name)) schema.deps.push(depSearch);
+          if (!schema.deps.some((v) => v.name == depSearch.name)) {
+            schema.deps.push(depSearch);
+          }
         } else {
-          const internalSearch = getClass(unknownType, source);
+          const internalSearch = source.getClass(unknownType);
           if (internalSearch) {
             if (DEBUG > 0) console.log("Found " + unknownType + " internally from " + source.internalPath);
-            if (!this.visitedClasses.has(internalSearch.range.source.internalPath + internalSearch.name.text)) {
+            if (!this.visitedClasses.has(source.getFullPath(internalSearch))) {
               this.visitClassDeclarationRef(internalSearch);
+              const internalSchema = this.schemas.get(internalSearch.range.source.internalPath)?.find((s) => s.name == unknownType);
+              // if (internalSchema.custom) mem.custom = true;
+              schema.deps.push(internalSchema);
               this.schemas.get(internalSearch.range.source.internalPath).push(this.schema);
               this.visitClassDeclaration(node);
               return;
             }
-            const schem = this.schemas.get(internalSearch.range.source.internalPath)?.find((s) => s.name == internalSearch.name.text);
+            const schem = this.schemas.get(internalSearch.range.source.internalPath)?.find((s) => s.name == unknownType);
             if (!schem) throw new Error("Could not find schema for " + internalSearch.name.text + " in " + internalSearch.range.source.internalPath);
             schema.deps.push(schem);
           } else {
-            const externalSearch = getImportedClass(unknownType, source, this.parser);
+            const externalSearch = source.getImportedClass(unknownType, this.parser);
             if (externalSearch) {
               if (DEBUG > 0) console.log("Found " + externalSearch.name.text + " externally from " + source.internalPath);
-              if (!this.visitedClasses.has(externalSearch.range.source.internalPath + externalSearch.name.text)) {
+              const externalSource = this.sources.get(externalSearch.range.source);
+              if (!this.visitedClasses.has(externalSource.getFullPath(externalSearch))) {
                 this.visitClassDeclarationRef(externalSearch);
-                this.schemas.get(externalSearch.range.source.internalPath).push(this.schema);
+                const externalSchema = this.schemas.get(externalSource.internalPath)?.find((s) => s.name == unknownType);
+                schema.deps.push(externalSchema);
+                this.schemas.get(externalSource.internalPath).push(this.schema);
                 this.visitClassDeclaration(node);
                 return;
               }
-              const schem = this.schemas.get(externalSearch.range.source.internalPath)?.find((s) => s.name == externalSearch.name.text);
-              if (!schem) throw new Error("Could not find schema for " + externalSearch.name.text + " in " + externalSearch.range.source.internalPath);
+              const schem = this.schemas.get(externalSource.internalPath)?.find((s) => s.name == unknownType);
+              if (!schem) throw new Error("Could not find schema for " + externalSearch.name.text + " in " + externalSource.internalPath);
               schema.deps.push(schem);
             }
           }
@@ -189,7 +195,7 @@ class JSONTransform extends Visitor {
 
     this.schemas.get(source.internalPath).push(schema);
     this.schema = schema;
-    this.visitedClasses.add(source.internalPath + node.name.text);
+    this.visitedClasses.add(fullClassPath);
 
     let SERIALIZE = "__SERIALIZE(ptr: usize): void {\n";
     let INITIALIZE = "@inline __INITIALIZE(): this {\n";
@@ -239,11 +245,11 @@ class JSONTransform extends Visitor {
       }
 
       DESERIALIZE_CUSTOM += "  __DESERIALIZE<__JSON_T>(srcStart: usize, srcEnd: usize, out: __JSON_T): __JSON_T {\n";
-      DESERIALIZE_CUSTOM += "    return inline.always(this." + deserializer.name.text + "(changetype<string>(srcStart)));\n";
+      DESERIALIZE_CUSTOM += "    return inline.always(this." + deserializer.name.text + "(JSON.Util.ptrToStr(srcStart, srcEnd)));\n";
       DESERIALIZE_CUSTOM += "  }\n";
     }
 
-    if (!members.length) {
+    if (!members.length && !deserializers.length && !serializers.length) {
       this.generateEmptyMethods(node);
       return;
     }
@@ -251,7 +257,7 @@ class JSONTransform extends Visitor {
     for (const member of members) {
       if (!member.type) throwError("Fields must be strongly typed", node.range);
       let type = toString(member.type!);
-      type = this.src.aliases.find((v) => stripNull(v.name) == stripNull(type))?.getBaseType() || type;
+      type = source.aliases.find((v) => stripNull(v.name) == stripNull(type))?.getBaseType() || type;
 
       const name = member.name;
       const value = member.initializer ? toString(member.initializer!) : null;
@@ -261,6 +267,7 @@ class JSONTransform extends Visitor {
       if (type.startsWith("(") && type.includes("=>")) continue;
 
       const mem = new Property();
+      mem.parent = this.schema;
       mem.name = name.text;
       mem.type = type;
       mem.value = value;
@@ -326,16 +333,24 @@ class JSONTransform extends Visitor {
       const aliasName = JSON.stringify(member.alias || member.name);
       const realName = member.name;
       const isLast = i == this.schema.members.length - 1;
-      const nonNullType = member.type.replace(" | null", "");
 
-      if (member.value) {
-        INITIALIZE += `  this.${member.name} = ${member.value};\n`;
-      } else if (this.getSchema(nonNullType)) {
-        INITIALIZE += `  this.${member.name} = changetype<nonnull<${member.type}>>(__new(offsetof<nonnull<${member.type}>>(), idof<nonnull<${member.type}>>())).__INITIALIZE();\n`;
-      } else if (member.type.startsWith("Array<") || member.type.startsWith("Map<")) {
-        INITIALIZE += `  this.${member.name} = [];\n`;
-      } else if (member.type == "string" || member.type == "String") {
-        INITIALIZE += `  this.${member.name} = "";\n`;
+      if (member.value && member.type == stripNull(member.type)) {
+        if (!(member.value == "null" || member.value == "0" || member.value == "0.0" || member.value == "false")) {
+          INITIALIZE += `  store<${member.type}>(changetype<usize>(this), ${member.value}, offsetof<this>(${JSON.stringify(member.name)}));\n`;
+        }
+      } else if (member.generic) {
+        INITIALIZE += `  if (isManaged<nonnull<${member.type}>>() || isReference<nonnull<${member.type}>>()) {\n`;
+        INITIALIZE += `    store<${member.type}>(changetype<usize>(this), changetype<nonnull<${member.type}>>(__new(offsetof<nonnull<${member.type}>>(), idof<nonnull<${member.type}>>())), offsetof<this>(${JSON.stringify(member.name)}));\n`;
+        INITIALIZE += `    if (isDefined(this.${member.name}.__INITIALIZE)) changetype<nonnull<${member.type}>>(this.${member.name}).__INITIALIZE();\n`;
+        INITIALIZE += `  }\n`;
+      } else if (!member.node.type.isNullable) {
+        if (this.getSchema(member.type)) {
+          INITIALIZE += `  store<${member.type}>(changetype<usize>(this), changetype<nonnull<${member.type}>>(__new(offsetof<nonnull<${member.type}>>(), idof<nonnull<${member.type}>>())).__INITIALIZE(), offsetof<this>(${JSON.stringify(member.name)}));\n`;
+        } else if (member.type.startsWith("Array<") || member.type.startsWith("Map<")) {
+          INITIALIZE += `  store<${member.type}>(changetype<usize>(this), [], offsetof<this>(${JSON.stringify(member.name)}));\n`;
+        } else if (member.type == "string" || member.type == "String") {
+          INITIALIZE += `  store<${member.type}>(changetype<usize>(this), "", offsetof<this>(${JSON.stringify(member.name)}));\n`;
+        }
       }
 
       const SIMD_ENABLED = this.program.options.hasFeature(Feature.Simd);
@@ -423,8 +438,7 @@ class JSONTransform extends Visitor {
 
     for (const member of this.schema.members) {
       const type = stripNull(member.type);
-      if (node.isGeneric && node.typeParameters.some((p) => stripNull(p.name.text) == type)) {
-        member.generic = true;
+      if (member.custom || member.generic) {
         sortedMembers.string.push(member);
         sortedMembers.number.push(member);
         sortedMembers.object.push(member);
@@ -437,8 +451,8 @@ class JSONTransform extends Visitor {
         else if (isBoolean(type) || type.startsWith("JSON.Box<bool")) sortedMembers.boolean.push(member);
         else if (isPrimitive(type) || type.startsWith("JSON.Box<")) sortedMembers.number.push(member);
         else if (isArray(type)) sortedMembers.array.push(member);
-        /*else */ if (isStruct(type)) sortedMembers.object.push(member);
-        // else throw new Error("Could not determine type " + type + " for member " + member.name + " in class " + this.schema.name);
+        /*else if (isStruct(type)) */ sortedMembers.object.push(member);
+        // else console.warn("Could not determine type " + type + " for member " + member.name + " in class " + this.schema.name);
       }
     }
 
@@ -850,7 +864,7 @@ class JSONTransform extends Visitor {
           const first = group[0];
           const fName = first.alias || first.name;
           DESERIALIZE += indent + "          if (" + (first.generic ? "isBoolean<" + first.type + ">() && " : "") + getComparision(fName) + ") { // " + fName + "\n";
-          DESERIALIZE += indent + "            store<" + first.type + ">(changetype<usize>(out), true, offsetof<this>(" + JSON.stringify(first.name) + "));\n";
+          DESERIALIZE += indent + "            store<boolean>(changetype<usize>(out), true, offsetof<this>(" + JSON.stringify(first.name) + "));\n";
           DESERIALIZE += indent + "            srcStart += 2;\n";
           DESERIALIZE += indent + "            keyStart = 0;\n";
           DESERIALIZE += indent + "            break;\n";
@@ -860,7 +874,7 @@ class JSONTransform extends Visitor {
             const mem = group[i];
             const memName = mem.alias || mem.name;
             DESERIALIZE += indent + " else if (" + (mem.generic ? "isBoolean<" + mem.type + ">() && " : "") + getComparision(memName) + ") { // " + memName + "\n";
-            DESERIALIZE += indent + "            store<" + mem.type + ">(changetype<usize>(out), true, offsetof<this>(" + JSON.stringify(mem.name) + "));\n";
+            DESERIALIZE += indent + "            store<boolean>(changetype<usize>(out), true, offsetof<this>(" + JSON.stringify(mem.name) + "));\n";
             DESERIALIZE += indent + "            srcStart += 2;\n";
             DESERIALIZE += indent + "            keyStart = 0;\n";
             DESERIALIZE += indent + "            break;\n";
@@ -904,7 +918,7 @@ class JSONTransform extends Visitor {
           const first = group[0];
           const fName = first.alias || first.name;
           DESERIALIZE += indent + "          if (" + (first.generic ? "isBoolean<" + first.type + ">() && " : "") + getComparision(fName) + ") { // " + fName + "\n";
-          DESERIALIZE += indent + "            store<" + first.type + ">(changetype<usize>(out), false, offsetof<this>(" + JSON.stringify(first.name) + "));\n";
+          DESERIALIZE += indent + "            store<boolean>(changetype<usize>(out), false, offsetof<this>(" + JSON.stringify(first.name) + "));\n";
           DESERIALIZE += indent + "            srcStart += 2;\n";
           DESERIALIZE += indent + "            keyStart = 0;\n";
           DESERIALIZE += indent + "            break;\n";
@@ -914,7 +928,7 @@ class JSONTransform extends Visitor {
             const mem = group[i];
             const memName = mem.alias || mem.name;
             DESERIALIZE += indent + " else if (" + (mem.generic ? "isBoolean<" + mem.type + ">() && " : "") + getComparision(memName) + ") { // " + memName + "\n";
-            DESERIALIZE += indent + "            store<" + mem.type + ">(changetype<usize>(out), false, offsetof<this>(" + JSON.stringify(mem.name) + "));\n";
+            DESERIALIZE += indent + "            store<boolean>(changetype<usize>(out), false, offsetof<this>(" + JSON.stringify(mem.name) + "));\n";
             DESERIALIZE += indent + "            srcStart += 2;\n";
             DESERIALIZE += indent + "            keyStart = 0;\n";
             DESERIALIZE += indent + "            break;\n";
@@ -1095,40 +1109,37 @@ class JSONTransform extends Visitor {
     super.visitSource(node);
   }
   addImports(node: Source): void {
+    // console.log("Separator: " + path.sep)
+    // console.log("Platform: " + process.platform)
+    this.baseCWD = this.baseCWD.replaceAll("/", path.sep);
+
     const baseDir = path.resolve(fileURLToPath(import.meta.url), "..", "..", "..");
     const pkgPath = path.join(this.baseCWD, "node_modules");
-    const isLibrary = existsSync(path.join(pkgPath, "json-as"));
-    let fromPath = node.range.source.normalizedPath.replaceAll(path.posix.sep, path.sep);
+    let fromPath = node.range.source.normalizedPath.replaceAll("/", path.sep);
 
-    fromPath = fromPath.startsWith("~lib" + path.sep) ? (existsSync(path.join(pkgPath, fromPath.slice(5, Math.max(fromPath.indexOf("/", 5), 5)))) ? path.join(pkgPath, fromPath.slice(5)) : fromPath) : path.join(this.baseCWD, fromPath);
+    // console.log("baseCWD", this.baseCWD);
+    // console.log("baseDir", baseDir);
+    // console.log("pkgPath: ", pkgPath);
+
+    fromPath = fromPath.startsWith("~lib") ? fromPath.slice(5) : path.join(this.baseCWD, fromPath);
+
+    // console.log("fromPath", fromPath);
 
     const bsImport = this.imports.find((i) => i.declarations?.find((d) => d.foreignName.text == "bs" || d.name.text == "bs"));
     const jsonImport = this.imports.find((i) => i.declarations?.find((d) => d.foreignName.text == "JSON" || d.name.text == "JSON"));
 
-    let bsRel = path.posix.join(...removeExtension(path.relative(path.dirname(fromPath), path.join(baseDir, "lib", "as-bs"))).split(path.sep));
+    let baseRel = path.posix.join(...path.relative(path.dirname(fromPath), path.join(baseDir)).split(path.sep));
 
-    let jsRel = path.posix.join(...removeExtension(path.relative(path.dirname(fromPath), path.join(baseDir, "assembly", "index"))).split(path.sep));
-
-    if (bsRel.includes("node_modules/json-as")) {
-      bsRel = "json-as" + bsRel.slice(bsRel.indexOf("node_modules/json-as") + 20);
-    } else if (!bsRel.startsWith(".") && !bsRel.startsWith("/") && !bsRel.startsWith("json-as")) {
-      bsRel = "./" + bsRel;
+    if (baseRel.endsWith("node_modules/json-as")) {
+      baseRel = "json-as" + baseRel.slice(baseRel.indexOf("node_modules/json-as") + 20);
+    } else if (!baseRel.startsWith(".") && !baseRel.startsWith("/") && !baseRel.startsWith("json-as")) {
+      baseRel = "./" + baseRel;
     }
 
-    if (jsRel.includes("node_modules/json-as")) {
-      jsRel = "json-as" + jsRel.slice(jsRel.indexOf("node_modules/json-as") + 20);
-    } else if (!jsRel.startsWith(".") && !jsRel.startsWith("/") && !jsRel.startsWith("json-as")) {
-      jsRel = "./" + jsRel;
-    }
-
-    // Quick fix to get the old behaviour that worked.
-    if (node.normalizedPath.startsWith("~")) {
-      bsRel = "json-as/lib/as-bs";
-      jsRel = "json-as/assembly/index";
-    }
+    // console.log("relPath", baseRel);
 
     if (!bsImport) {
-      const replaceNode = Node.createImportStatement([Node.createImportDeclaration(Node.createIdentifierExpression("bs", node.range, false), null, node.range)], Node.createStringLiteralExpression(bsRel, node.range), node.range);
+      const replaceNode = Node.createImportStatement([Node.createImportDeclaration(Node.createIdentifierExpression("bs", node.range, false), null, node.range)], Node.createStringLiteralExpression(path.posix.join(baseRel, "lib", "as-bs"), node.range), node.range);
       node.range.source.statements.unshift(replaceNode);
       if (DEBUG > 0) console.log("Added import: " + toString(replaceNode) + " to " + node.range.source.normalizedPath + "\n");
     }
@@ -1136,7 +1147,7 @@ class JSONTransform extends Visitor {
     if (!jsonImport) {
       const replaceNode = Node.createImportStatement(
         [Node.createImportDeclaration(Node.createIdentifierExpression("JSON", node.range, false), null, node.range)],
-        Node.createStringLiteralExpression(jsRel, node.range), // Ensure POSIX-style path for 'assembly'
+        Node.createStringLiteralExpression(path.posix.join(baseRel, "assembly", "index"), node.range), // Ensure POSIX-style path for 'assembly'
         node.range,
       );
       node.range.source.statements.unshift(replaceNode);
@@ -1232,7 +1243,7 @@ export default class Transformer extends Transform {
         transformer.addImports(source);
       }
       if (source.normalizedPath == WRITE) {
-        writeFileSync(path.join(process.cwd(), this.baseDir, removeExtension(source.normalizedPath) + ".json.ts"), toString(source));
+        writeFileSync(path.join(process.cwd(), this.baseDir, removeExtension(source.normalizedPath) + ".tmp.ts"), toString(source));
       }
     }
   }
@@ -1405,9 +1416,11 @@ function isArray(type: string): boolean {
   return type.startsWith("Array<");
 }
 
-function stripNull(type: string): string {
+export function stripNull(type: string): string {
   if (type.endsWith(" | null")) {
     return type.slice(0, type.length - 7);
+  } else if (type.startsWith("null | ")) {
+    return type.slice(7);
   }
   return type;
 }

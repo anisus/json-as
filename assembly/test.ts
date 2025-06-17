@@ -1,20 +1,20 @@
 import { JSON } from ".";
-import { Vec3 } from "./types";
-
+@json
+class Vec3 {
+  x: f32 = 0.0;
+  y: f32 = 0.0;
+  z: f32 = 0.0;
+}
 
 @json
 class Player {
-
   @alias("first name")
-  firstName!: string;
+  firstName!: string | null;
   lastName!: string;
   lastActive!: i32[];
-
-
+  // Drop in a code block, function, or expression that evaluates to a boolean
   @omitif((self: Player) => self.age < 18)
   age!: i32;
-
-
   @omitnull()
   pos!: Vec3 | null;
   isVerified!: boolean;
@@ -33,7 +33,8 @@ const player: Player = {
   isVerified: true,
 };
 
-const serialized = JSON.stringify(player);
-console.log("Serialized: " + serialized);
+const serialized = JSON.stringify<Player>(player);
 const deserialized = JSON.parse<Player>(serialized);
-console.log("Deserialized: " + JSON.stringify(deserialized));
+
+console.log("Serialized    " + serialized);
+console.log("Deserialized  " + JSON.stringify(deserialized));

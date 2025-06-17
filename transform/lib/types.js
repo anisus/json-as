@@ -124,21 +124,19 @@ export class Src {
     }
     getImportedClass(qualifiedName, parser) {
         for (const stmt of this.imports) {
-            const externalSource = parser.sources
-                .filter((src) => src.internalPath != this.internalPath)
-                .find((src) => src.internalPath == stmt.internalPath);
+            const externalSource = parser.sources.filter((src) => src.internalPath != this.internalPath).find((src) => src.internalPath == stmt.internalPath);
             if (!externalSource)
                 continue;
             const source = this.sourceSet.get(externalSource);
             const classDeclaration = source.getClass(qualifiedName);
-            if (classDeclaration && (classDeclaration.flags & 2)) {
+            if (classDeclaration && classDeclaration.flags & 2) {
                 return classDeclaration;
             }
         }
         return null;
     }
     getFullPath(node) {
-        return this.internalPath + '/' + this.getQualifiedName(node);
+        return this.internalPath + "/" + this.getQualifiedName(node);
     }
     resolveExtendsName(classDeclaration) {
         const parents = this.nodeMap.get(classDeclaration);
@@ -151,16 +149,19 @@ export class Src {
             const parent = parents[i];
             for (let node of parent.members) {
                 if (name == this.getNamespaceOrClassName(node)) {
-                    return parents.slice(0, i + 1).map(p => p.name.text).join('.') + '.' + extendsName;
+                    return (parents
+                        .slice(0, i + 1)
+                        .map((p) => p.name.text)
+                        .join(".") +
+                        "." +
+                        extendsName);
                 }
             }
         }
         return extendsName;
     }
     qualifiedName(node, parents) {
-        return parents?.length
-            ? parents.map((p) => p.name.text).join('.') + '.' + node.name.text
-            : node.name.text;
+        return parents?.length ? parents.map((p) => p.name.text).join(".") + "." + node.name.text : node.name.text;
     }
     getNamespaceOrClassName(node) {
         switch (node.kind) {
@@ -177,7 +178,7 @@ export class Src {
             names.push(typeName.identifier.text);
             typeName = typeName.next;
         }
-        return names.join('.');
+        return names.join(".");
     }
 }
 //# sourceMappingURL=types.js.map

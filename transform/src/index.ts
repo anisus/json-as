@@ -18,7 +18,7 @@ const rawValue = process.env["JSON_DEBUG"]?.trim();
 const DEBUG = rawValue === "true" ? 1 : rawValue === "false" || rawValue === "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
 
 const STRICT = process.env["JSON_STRICT"] && process.env["JSON_STRICT"] == "true";
-
+console.log("DEBUG", DEBUG);
 export class JSONTransform extends Visitor {
   static SN: JSONTransform = new JSONTransform();
 
@@ -334,8 +334,8 @@ export class JSONTransform extends Visitor {
       const realName = member.name;
       const isLast = i == this.schema.members.length - 1;
 
-      if (member.value && member.type == stripNull(member.type)) {
-        if (!(member.value == "null" || member.value == "0" || member.value == "0.0" || member.value == "false")) {
+      if (member.value) {
+        if (member.value != "null" && member.value != "0" && member.value != "0.0" && member.value != "false") {
           INITIALIZE += `  store<${member.type}>(changetype<usize>(this), ${member.value}, offsetof<this>(${JSON.stringify(member.name)}));\n`;
         }
       } else if (member.generic) {
@@ -1397,15 +1397,6 @@ function isPrimitive(type: string): boolean {
 
 function isBoolean(type: string): boolean {
   return type == "bool" || type == "boolean";
-}
-
-function isStruct(type: string): boolean {
-  type = stripNull(type);
-  const schema = JSONTransform.SN.schema;
-  if (schema.name == type) return true;
-  const depSearch = schema.deps.some((v) => v.name == type);
-  if (depSearch) return true;
-  return false;
 }
 
 function isString(type: string) {

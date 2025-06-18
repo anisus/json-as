@@ -11,7 +11,6 @@ class Vec3 {
 
 @json
 class Player {
-
   @alias("first name")
   firstName!: string | null;
   lastName!: string;
@@ -20,8 +19,6 @@ class Player {
   @omitif((self: Player) => self.age < 18)
   age!: i32;
 
-
-  @omitnull()
   pos!: Vec3 | null;
   isVerified!: boolean;
 }

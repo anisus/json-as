@@ -1139,15 +1139,21 @@ export class JSONTransform extends Visitor {
     // console.log("relPath", baseRel);
 
     if (!bsImport) {
-      const replaceNode = Node.createImportStatement([Node.createImportDeclaration(Node.createIdentifierExpression("bs", node.range, false), null, node.range)], Node.createStringLiteralExpression(path.posix.join(baseRel, "lib", "as-bs"), node.range), node.range);
+      const bsPath = node.normalizedPath.startsWith("~")
+        ? "json-as/lib/as-bs"
+        : path.posix.join(baseRel, "lib", "as-bs");
+      const replaceNode = Node.createImportStatement([Node.createImportDeclaration(Node.createIdentifierExpression("bs", node.range, false), null, node.range)], Node.createStringLiteralExpression(bsPath, node.range), node.range);
       node.range.source.statements.unshift(replaceNode);
       if (DEBUG > 0) console.log("Added import: " + toString(replaceNode) + " to " + node.range.source.normalizedPath + "\n");
     }
 
     if (!jsonImport) {
+      const jsonPath = node.normalizedPath.startsWith("~")
+        ? "json-as/assembly/index"
+        : path.posix.join(baseRel, "assembly", "index");
       const replaceNode = Node.createImportStatement(
         [Node.createImportDeclaration(Node.createIdentifierExpression("JSON", node.range, false), null, node.range)],
-        Node.createStringLiteralExpression(path.posix.join(baseRel, "assembly", "index"), node.range), // Ensure POSIX-style path for 'assembly'
+        Node.createStringLiteralExpression(jsonPath, node.range), // Ensure POSIX-style path for 'assembly'
         node.range,
       );
       node.range.source.statements.unshift(replaceNode);

@@ -13,6 +13,7 @@ const WRITE = process.env["JSON_WRITE"]?.trim();
 const rawValue = process.env["JSON_DEBUG"]?.trim();
 const DEBUG = rawValue === "true" ? 1 : rawValue === "false" || rawValue === "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
 const STRICT = process.env["JSON_STRICT"] && process.env["JSON_STRICT"] == "true";
+console.log("DEBUG", DEBUG);
 export class JSONTransform extends Visitor {
     static SN = new JSONTransform();
     program;
@@ -319,8 +320,8 @@ export class JSONTransform extends Visitor {
             const aliasName = JSON.stringify(member.alias || member.name);
             const realName = member.name;
             const isLast = i == this.schema.members.length - 1;
-            if (member.value && member.type == stripNull(member.type)) {
-                if (!(member.value == "null" || member.value == "0" || member.value == "0.0" || member.value == "false")) {
+            if (member.value) {
+                if (member.value != "null" && member.value != "0" && member.value != "0.0" && member.value != "false") {
                     INITIALIZE += `  store<${member.type}>(changetype<usize>(this), ${member.value}, offsetof<this>(${JSON.stringify(member.name)}));\n`;
                 }
             }
@@ -973,13 +974,19 @@ export class JSONTransform extends Visitor {
             baseRel = "./" + baseRel;
         }
         if (!bsImport) {
-            const replaceNode = Node.createImportStatement([Node.createImportDeclaration(Node.createIdentifierExpression("bs", node.range, false), null, node.range)], Node.createStringLiteralExpression(path.posix.join(baseRel, "lib", "as-bs"), node.range), node.range);
+            const bsPath = node.normalizedPath.startsWith("~")
+                ? "json-as/lib/as-bs"
+                : path.posix.join(baseRel, "lib", "as-bs");
+            const replaceNode = Node.createImportStatement([Node.createImportDeclaration(Node.createIdentifierExpression("bs", node.range, false), null, node.range)], Node.createStringLiteralExpression(bsPath, node.range), node.range);
             node.range.source.statements.unshift(replaceNode);
             if (DEBUG > 0)
                 console.log("Added import: " + toString(replaceNode) + " to " + node.range.source.normalizedPath + "\n");
         }
         if (!jsonImport) {
-            const replaceNode = Node.createImportStatement([Node.createImportDeclaration(Node.createIdentifierExpression("JSON", node.range, false), null, node.range)], Node.createStringLiteralExpression(path.posix.join(baseRel, "assembly", "index"), node.range), node.range);
+            const jsonPath = node.normalizedPath.startsWith("~")
+                ? "json-as/assembly/index"
+                : path.posix.join(baseRel, "assembly", "index");
+            const replaceNode = Node.createImportStatement([Node.createImportDeclaration(Node.createIdentifierExpression("JSON", node.range, false), null, node.range)], Node.createStringLiteralExpression(jsonPath, node.range), node.range);
             node.range.source.statements.unshift(replaceNode);
             if (DEBUG > 0)
                 console.log("Added import: " + toString(replaceNode) + " to " + node.range.source.normalizedPath + "\n");
@@ -1211,16 +1218,6 @@ function isPrimitive(type) {
 }
 function isBoolean(type) {
     return type == "bool" || type == "boolean";
-}
-function isStruct(type) {
-    type = stripNull(type);
-    const schema = JSONTransform.SN.schema;
-    if (schema.name == type)
-        return true;
-    const depSearch = schema.deps.some((v) => v.name == type);
-    if (depSearch)
-        return true;
-    return false;
 }
 function isString(type) {
     return stripNull(type) == "string" || stripNull(type) == "String";

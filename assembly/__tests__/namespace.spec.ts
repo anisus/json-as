@@ -7,8 +7,8 @@ describe("Should serialize namespaced derived structs", () => {
 });
 
 describe("Should serialize namespaced derived structs with nested object", () => {
-  const bar: Namespace.Bar = { value: "baz" }
-  const obj: Namespace.DerivedObjectWithNestedObject = { a: "foo", b: "bar", c: bar};
+  const bar: Namespace.Bar = { value: "baz" };
+  const obj: Namespace.DerivedObjectWithNestedObject = { a: "foo", b: "bar", c: bar };
   expect(JSON.stringify(obj)).toBe(`{"a":"foo","b":"bar","c":{"value":"baz"}}`);
 });
 
@@ -35,21 +35,25 @@ namespace Namespace {
     a: string = "";
   }
 
+
   @json
   export class Bar {
     value: string = "";
   }
 
+
   @json
   export class ObjectWithAliasProperty {
-		a: string = "";
+    a: string = "";
     value: NumberAlias = 0;
   }
+
 
   @json
   export class DerivedObject extends Base {
     b: string = "";
   }
+
 
   @json
   export class DerivedObjectWithNestedObject extends Base {

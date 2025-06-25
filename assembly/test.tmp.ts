@@ -225,12 +225,10 @@ class Player {
   lastActive!: Array<i32>;
   @omitif((self: this): boolean => self.age < 18)
   age!: i32;
-  @omitnull()
   pos!: Vec3 | null;
   isVerified!: boolean;
   __SERIALIZE(ptr: usize): void {
-    bs.proposeSize(160);
-    let block: usize = 0;
+    bs.proposeSize(158);
     store<u16>(bs.offset, 123, 0);
     bs.offset += 2;
     if (!((self: this): boolean => self.age < 18)(this)) {
@@ -238,14 +236,6 @@ class Player {
       store<u32>(bs.offset, 3801122, 8);
       bs.offset += 12;
       JSON.__serialize<i32>(load<i32>(ptr, offsetof<this>("age")));
-      store<u16>(bs.offset, 44, 0);
-      bs.offset += 2;
-    }
-    if ((block = load<usize>(ptr, offsetof<this>("pos"))) !== 0) {
-      store<u64>(bs.offset, 32370099070435362, 0);
-      store<u32>(bs.offset, 3801122, 8);
-      bs.offset += 12;
-      JSON.__serialize<Vec3 | null>(load<Vec3 | null>(ptr, offsetof<this>("pos")));
       store<u16>(bs.offset, 44, 0);
       bs.offset += 2;
     }
@@ -266,6 +256,11 @@ class Player {
     store<u32>(bs.offset, 3801122, 24);
     bs.offset += 28;
     JSON.__serialize<Array<i32>>(load<Array<i32>>(ptr, offsetof<this>("lastActive")));
+    store<u64>(bs.offset, 31244203453448236, 0);
+    store<u32>(bs.offset, 2228339, 8);
+    store<u16>(bs.offset, 58, 12);
+    bs.offset += 14;
+    JSON.__serialize<Vec3 | null>(load<Vec3 | null>(ptr, offsetof<this>("pos")));
     store<u64>(bs.offset, 32370073295519788, 0);
     store<u64>(bs.offset, 29555362187509846, 8);
     store<u64>(bs.offset, 28147931469643878, 16);
@@ -588,11 +583,13 @@ class Player {
           if (load<u64>(srcStart) == 30399761348886638) {
             srcStart += 8;
             switch (<u32>keyEnd - <u32>keyStart) {
-              case 6:
+              case 20:
                 {
-                  const code48 = load<u64>(keyStart) & 281474976710655;
-                  if (code48 == 493928513648) {
-                    store<usize>(changetype<usize>(out), 0, offsetof<this>("pos"));
+                  const codeS8 = load<u64>(keyStart, 0);
+                  const codeS16 = load<u64>(keyStart, 8);
+                  const codeS20 = load<u32>(keyStart, 16);
+                  if (codeS8 == 32370111954878566 && codeS16 == 27303545189433460 && codeS20 == 6619245) {
+                    store<usize>(changetype<usize>(out), 0, offsetof<this>("firstName"));
                     srcStart += 2;
                     keyStart = 0;
                     break;
@@ -603,13 +600,11 @@ class Player {
                   }
                 }
 
-              case 20:
+              case 6:
                 {
-                  const codeS8 = load<u64>(keyStart, 0);
-                  const codeS16 = load<u64>(keyStart, 8);
-                  const codeS20 = load<u32>(keyStart, 16);
-                  if (codeS8 == 32370111954878566 && codeS16 == 27303545189433460 && codeS20 == 6619245) {
-                    store<usize>(changetype<usize>(out), 0, offsetof<this>("firstName"));
+                  const code48 = load<u64>(keyStart) & 281474976710655;
+                  if (code48 == 493928513648) {
+                    store<usize>(changetype<usize>(out), 0, offsetof<this>("pos"));
                     srcStart += 2;
                     keyStart = 0;
                     break;

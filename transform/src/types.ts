@@ -1,17 +1,4 @@
-import {
-  ClassDeclaration,
-  Expression,
-  FieldDeclaration,
-  Source,
-  NodeKind,
-  Node,
-  NamespaceDeclaration,
-  DeclarationStatement,
-  TypeName,
-  Parser,
-  ImportStatement,
-  CommonFlags,
-} from "assemblyscript/dist/assemblyscript.js";
+import { ClassDeclaration, Expression, FieldDeclaration, Source, NodeKind, Node, NamespaceDeclaration, DeclarationStatement, TypeName, Parser, ImportStatement, CommonFlags } from "assemblyscript/dist/assemblyscript.js";
 import { TypeAlias } from "./linkers/alias.js";
 import { stripNull } from "./index.js";
 
@@ -98,7 +85,7 @@ export class SourceSet {
    * @returns Source object
    */
   get(source: Source): Src {
-    let src = this.sources[source.internalPath]
+    let src = this.sources[source.internalPath];
     if (!src) {
       src = new Src(source, this);
       this.sources[source.internalPath] = src;
@@ -108,7 +95,6 @@ export class SourceSet {
 }
 
 export class Src {
-
   public internalPath: string;
   public normalizedPath: string;
   public schemas: Schema[];
@@ -118,7 +104,10 @@ export class Src {
   private classes: Record<string, ClassDeclaration> = {};
   private imports: ImportStatement[] = [];
 
-  constructor(source: Source, private sourceSet: SourceSet) {
+  constructor(
+    source: Source,
+    private sourceSet: SourceSet,
+  ) {
     this.internalPath = source.internalPath;
     this.normalizedPath = source.normalizedPath;
     this.aliases = TypeAlias.getAliases(source);
@@ -146,7 +135,7 @@ export class Src {
           this.imports.push(importStatement);
           break;
       }
-      this.nodeMap.set(node, path)
+      this.nodeMap.set(node, path);
     }
   }
 
@@ -176,14 +165,12 @@ export class Src {
    */
   getImportedClass(qualifiedName: string, parser: Parser): ClassDeclaration | null {
     for (const stmt of this.imports) {
-      const externalSource = parser.sources
-        .filter((src) => src.internalPath != this.internalPath)
-        .find((src) => src.internalPath == stmt.internalPath);
+      const externalSource = parser.sources.filter((src) => src.internalPath != this.internalPath).find((src) => src.internalPath == stmt.internalPath);
       if (!externalSource) continue;
 
       const source = this.sourceSet.get(externalSource);
       const classDeclaration = source.getClass(qualifiedName);
-      if (classDeclaration && (classDeclaration.flags & CommonFlags.Export)) {
+      if (classDeclaration && classDeclaration.flags & CommonFlags.Export) {
         return classDeclaration;
       }
     }
@@ -196,7 +183,7 @@ export class Src {
    * @param node DeclarationStatement
    */
   getFullPath(node: DeclarationStatement): string {
-    return this.internalPath + '/' + this.getQualifiedName(node);
+    return this.internalPath + "/" + this.getQualifiedName(node);
   }
 
   /**
@@ -221,7 +208,14 @@ export class Src {
       for (let node of parent.members) {
         if (name == this.getNamespaceOrClassName(node)) {
           // Add namespace path to the extendsName.
-          return parents.slice(0, i + 1).map(p => p.name.text).join('.') + '.' + extendsName;
+          return (
+            parents
+              .slice(0, i + 1)
+              .map((p) => p.name.text)
+              .join(".") +
+            "." +
+            extendsName
+          );
         }
       }
     }
@@ -236,9 +230,7 @@ export class Src {
    * @returns Qualified name
    */
   private qualifiedName(node: DeclarationStatement, parents: NamespaceDeclaration[]): string {
-    return parents?.length
-      ? parents.map((p) => p.name.text).join('.') + '.' + node.name.text
-      : node.name.text;
+    return parents?.length ? parents.map((p) => p.name.text).join(".") + "." + node.name.text : node.name.text;
   }
 
   /**
@@ -266,9 +258,9 @@ export class Src {
   private getIdentifier(typeName: TypeName): string {
     let names = [];
     while (typeName) {
-      names.push(typeName.identifier.text)
+      names.push(typeName.identifier.text);
       typeName = typeName.next;
     }
-    return names.join('.');
+    return names.join(".");
   }
 }
